@@ -21,7 +21,7 @@ class Px4Controller:
         self.local_pose = None
         self.current_state = None
         self.current_heading = None
-        self.takeoff_height = 3.2
+        self.takeoff_height = 3
         self.initial_heading = 0
 
         self.cur_target_pose = None
@@ -44,7 +44,7 @@ class Px4Controller:
         self.imu_sub = rospy.Subscriber("/mavros/imu/data", Imu, self.imu_callback)
         self.camera_sub = rospy.Subscriber("/mavlink/image_raw",Image,self.image_callback)
 
-        self.set_target_position_sub = rospy.Subscriber("gi/set_pose/position", PoseStamped, self.set_target_position_callback)
+        self.set_target_position_sub = rospy.Subscriber("gi/set_pose/position", PositionTarget, self.set_target_position_callback)
         self.set_target_yaw_sub = rospy.Subscriber("gi/set_pose/orientation", Float32, self.set_target_yaw_callback)
         self.custom_activity_sub = rospy.Subscriber("gi/set_activity/type", String, self.custom_activity_callback)
 
@@ -66,18 +66,14 @@ class Px4Controller:
 
         print("Px4 Controller Initialized!")
 
-
-    def start(self):
-
-        rospy.init_node("offboard_node","commander_node")
-        rate = rospy.Rate(20)
-
+    def take_off (self):
         self.cur_target_pose = self.construct_target(0, 0, self.takeoff_height, self.current_heading)
 
         #print ("self.cur_target_pose:", self.cur_target_pose, type(self.cur_target_pose))
 
         for i in range(10):
             self.local_target_pub.publish(self.cur_target_pose)
+            self.local_infor_pos_pub.publish(self.local_pose)
             #print (self.local_pose)
             self.arm_state = self.arm()
             self.offboard_state = self.offboard()
@@ -94,6 +90,12 @@ class Px4Controller:
         self.initial_heading = math.pi / 2
         print("Initial heading set to: ", self.initial_heading)
         print("Vehicle Took Off!")
+
+    def start(self):
+
+        rospy.init_node("offboard_node","commander_node")
+        rate = rospy.Rate(100)
+        self.take_off()
 
         '''
         main ROS thread
@@ -199,6 +201,9 @@ class Px4Controller:
                                                          self.local_pose.pose.position.y,
                                                          0.1,
                                                          self.current_heading)
+        if msg.data == "TAKE_OFF":
+            self.state = "TAKE_OFF"
+            self.take_off()
 
         if msg.data == "HOVER":
             print("HOVERING!")
@@ -217,24 +222,26 @@ class Px4Controller:
         '''
         BODY_OFFSET_ENU
         '''
+        yaw_deg = msg.yaw * math.pi / 180.0
         if self.frame is "BODY" and msg.header.frame_id=='frame.body':
-            new_x, new_y, new_z = self.body2enu(msg.pose.position.x, msg.pose.position.y, msg.pose.position.z)
+            new_x, new_y, new_z = self.body2enu(msg.position.x, msg.position.y, msg.position.z)
             print(new_x, new_y, new_z)
             ENU_x = new_x + self.local_pose.pose.position.x
             ENU_y = new_y + self.local_pose.pose.position.y
             ENU_z = new_z + self.local_pose.pose.position.z
 
-            self.cur_target_pose = self.construct_target(ENU_x, ENU_y, ENU_z, self.current_heading)
+            self.cur_target_pose = self.construct_target(ENU_x, ENU_y, ENU_z, yaw_deg)
 
         else:
             print("LOCAL ENU")
             '''
             LOCAL_ENU
             '''
-            self.cur_target_pose = self.construct_target(msg.pose.position.x,
-                                                         msg.pose.position.y,
-                                                         msg.pose.position.z,
-                                                         self.current_heading)
+            
+            self.cur_target_pose = self.construct_target(msg.position.x,
+                                                         msg.position.y,
+                                                         msg.position.z,
+                                                         yaw_deg)
 
 
     def set_target_yaw_callback(self, msg):
