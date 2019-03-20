@@ -37,6 +37,7 @@ class Commander:
         rospy.init_node("commander_node")
         rate = rospy.Rate(100)
         self.local_pose = None
+        self.b_one_loop_completed = False
         self.h5_chunk_size = 32 ## 0 is elimilated]
         self.chunk_id = 0
         self.line_pd_dump = pd.DataFrame(np.zeros((self.h5_chunk_size,7)), columns = ["p_x","p_y","p_z","Quaternion_x","Quaternion_y","Quaternion_z","Quaternion_w"])
@@ -97,7 +98,7 @@ class Commander:
         pass
 
     def trigger_data_collection(self,chunk_id,img,count):
-        
+        pass
         cv2.imwrite('../image/'+'camera_image_'+str(chunk_id)+'_'+str(count)+'.bmp',img.image_raw )
     
     def collect_data(self,pos,img,count,h,r):
@@ -114,14 +115,11 @@ class Commander:
         self.line_pd_dump.loc[count] =dict_dump
         print ("chunk_id:", self.chunk_id,"count:",count)
         global image_fname
-        cv2.imwrite('../image/'+image_fname+'/camera_image_'+str(self.chunk_id)+'_'+str(count)+'_'+str(h)+'_'+str(r)+'.bmp',img.image_raw)
+        cv2.imwrite('../'+image_fname + '/image/' + 'camera_image_'+str(self.chunk_id)+'_'+str(count)+'_'+str(h)+'_'+str(r)+'.bmp',img.image_raw)
         #print (self.line_pd_dump.loc[count])
 
-        if count % self.h5_chunk_size == 0:
-            self.chunk_id = count / self.h5_chunk_size
-            path = '../pose/'+pose_fname+'/pose_'+str(self.chunk_id)+'_'+str(count)+'_'+str(h)+'_'+str(r)+'.h5'
-            if os.path.exists(path):
-                os.remove(path)
+        if self.b_one_loop_completed == True:
+            path = '../'+pose_fname + '/pose/' +'pose_'+str(self.chunk_id)+'_'+str(h)+'_'+str(r)+'.h5'
             self.line_pd_dump.to_hdf(path,key = 'pose',mode='w')
 
     '''
@@ -129,6 +127,8 @@ class Commander:
     '''
     def circle_move(self,c_x,c_y,c_z,h,r,direction_flag = 'Anticlockwise'):
         global img,con
+        self.b_one_loop_completed = False
+        self.chunk_id = self.chunk_id + 1
         '''
         center of gate is (10-0.1,10+0.5,1.931) , 0.325 and 0.5 are the biases of the coordinate of gate. The unit is /m
         '''
@@ -144,6 +144,7 @@ class Commander:
         start_y = c_y + bias_y
         for i in range(10):
             con.move(start_x,start_y,h,0,False)
+            time.sleep(0.5)
         print ('start:',(start_x,start_y))
         time.sleep(10)
         time_step = 0.2
@@ -212,8 +213,10 @@ class Commander:
                 time.sleep(time_step)
                 con.collect_data(con.local_pose,img,count,h,r)
                 count = count+1
-
+                self.b_one_loop_completed = True
+                con.collect_data(con.local_pose,img,count,h,r)
             time.sleep(5)
+
         elif direction_flag == 'Clockwise' :
             '''
             0 - -90 degrees
@@ -266,7 +269,7 @@ class Commander:
             '''
             270-360 degrees
             ''' 
-            for theta in range(90,0,-1):
+            for theta in range(90,-1,0):
                 sin_theta = np.sin(np.deg2rad(theta))
                 cos_theta = np.cos(np.deg2rad(theta))
                 print (sin_theta,cos_theta)
@@ -277,8 +280,9 @@ class Commander:
                 time.sleep(time_step)
                 con.collect_data(con.local_pose,img,count,h,r)
                 count = count+1
-
-            time.sleep(5)
+                self.b_one_loop_completed = True
+                con.collect_data(con.local_pose,img,count,h,r)
+        time.sleep(5)
 
     '''
     control drone to pass through the ring
@@ -302,27 +306,42 @@ if __name__ == "__main__":
     if debug == False:
         pose_fname = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()) 
         image_fname = pose_fname
-        os.mkdir ('../pose/'+pose_fname)
-        os.mkdir ('../image/'+image_fname)
+        os.makedirs ('../'+pose_fname +'/pose/')
+        os.makedirs ('../'+image_fname + '/image/')
 
-    con.circle_move(10,10,1.931,1.931,5,'Clockwise')
-    con.circle_move(10,10,1.931,1.931,4.5,'Clockwise')
-    con.circle_move(10,10,1.931,1.931,4,'Clockwise')
-    con.circle_move(10,10,1.931,1.931,3.5,'Clockwise')
-    con.circle_move(10,10,1.931,1.931,3,'Clockwise')
-    con.circle_move(10,10,1.931,1.931,2.5,'Clockwise')
-    con.circle_move(10,10,1.931,1.931,2,'Clockwise')
+    # con.circle_move(10,10,1.931,1.931,5,'Clockwise')
+    # con.circle_move(10,10,1.931,1.931,4.5,'Clockwise')
+    # con.circle_move(10,10,1.931,1.931,4,'Clockwise')
+    # con.circle_move(10,10,1.931,1.931,3.5,'Clockwise')
+    # con.circle_move(10,10,1.931,1.931,3,'Clockwise')
+    # con.circle_move(10,10,1.931,1.931,2.5,'Clockwise')
+    # con.circle_move(10,10,1.931,1.931,2,'Clockwise')
 
-    con.circle_move(10,10,1.931,1.931,1.3,'Clockwise')
-    con.circle_move(10,10,1.931,1.931,1.5,'Clockwise')
-    con.circle_move(10,10,1.931,1.931,1.7,'Clockwise')
+    # con.circle_move(10,10,1.931,1.931,1.3,'Clockwise')
+    # con.circle_move(10,10,1.931,1.931,1.5,'Clockwise')
+    # con.circle_move(10,10,1.931,1.931,1.7,'Clockwise')
 
-    con.circle_move(10,10,1.931,1,2,'Clockwise')
-    con.circle_move(10,10,1.931,1.5,2,'Clockwise')
-    con.circle_move(10,10,1.931,2,2,'Clockwise')
-    con.circle_move(10,10,1.931,2.5,2,'Clockwise')
+    # con.circle_move(10,10,1.931,1,2,'Clockwise')
+    # con.circle_move(10,10,1.931,1.5,2,'Clockwise')
+    # con.circle_move(10,10,1.931,2,2,'Clockwise')
+    # con.circle_move(10,10,1.931,2.5,2,'Clockwise')
 
- 
+    con.circle_move(10,10,1.931,1.931,5,'Anticlockwise')
+    con.circle_move(10,10,1.931,1.931,4.5,'Anticlockwise')
+    con.circle_move(10,10,1.931,1.931,4,'Anticlockwise')
+    con.circle_move(10,10,1.931,1.931,3.5,'Anticlockwise')
+    con.circle_move(10,10,1.931,1.931,3,'Anticlockwise')
+    con.circle_move(10,10,1.931,1.931,2.5,'Anticlockwise')
+    con.circle_move(10,10,1.931,1.931,2,'Anticlockwise')
+
+    con.circle_move(10,10,1.931,1.931,1.3,'Anticlockwise')
+    con.circle_move(10,10,1.931,1.931,1.5,'Anticlockwise')
+    con.circle_move(10,10,1.931,1.931,1.7,'Anticlockwise')
+
+    con.circle_move(10,10,1.931,1,2,'Anticlockwise')
+    con.circle_move(10,10,1.931,1.5,2,'Anticlockwise')
+    con.circle_move(10,10,1.931,2,2,'Anticlockwise')
+    con.circle_move(10,10,1.931,2.5,2,'Anticlockwise')
     time.sleep(1)
 
     time.sleep(0.5)
