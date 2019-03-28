@@ -1,14 +1,15 @@
-import pyglet
-from pyglet.gl import *
-from pyglet.window import key
+from commander import Image_Capture
+from geometry_msgs.msg import PoseStamped
 import OpenGL.GLUT as GLUT
 import OpenGL.GL  as GL
 import OpenGL.GLU  as GLU
 import numpy as np
 import time
+import rospy
 import threading
-import thread
-WIN_W, WIN_H = 800, 600                          
+import cv2
+WIN_W, WIN_H = 800, 600  
+
 class Gate:
     '''
     The coordinates between gazebo and openGl are different
@@ -22,7 +23,13 @@ class Gate:
         self.f_rotate_x = 0.0
         self.f_rotate_y = 0.0
         self.f_rotate_z = 0.0
-        self.depth = 0
+        self.f_position_x_gt = 0.0
+        self.f_position_y_gt = 0.0
+        self.f_position_z_gt = 0.0
+        self.f_rotate_x_gt = 0.0
+        self.f_rotate_y_gt = 0.0
+        self.f_rotate_z_gt = 0.0
+        self.depth = -5
         self.EYE = np.array([1, 1, 1])                     
         self.LOOK_AT = np.array([0.0, 0.0, 0.0])                 
         self.EYE_UP = np.array([-1.0, -1.0, 0]) 
@@ -35,12 +42,17 @@ class Gate:
         GL.glEnable(GL.GL_DEPTH_TEST)          
         GL.glEnable(GL.GL_DITHER)
         GL.glShadeModel(GL.GL_SMOOTH) 
-        #GLUT.glutDisplayFunc(self.draw)    
+   
         GLUT.glutReshapeFunc(self.reshape)
         # Gate_Handle = Gate(10,10,1)
         # GLUT.glutDisplayFunc(self.draw)    
         # GLUT.glutReshapeFunc(self.reshape)    
-        # GLUT.glutMainLoop()   
+        #GLUT.glutMainLoop()   
+        rospy.init_node("show_pose_node")
+        rate = rospy.Rate(100)
+        self.pred_pose_sub = rospy.Subscriber("gi/gate_pose_pred/pose", PoseStamped, self.pred_pose_callback)
+        self.gt_pose_sub = rospy.Subscriber("gi/gate_pose_gt/pose", PoseStamped, self.gt_pose_callback)
+
 
     def draw(self):
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
@@ -55,16 +67,18 @@ class Gate:
         '''
         Draw the coordinate axis
         '''
+  
+      
         GL.glBegin(GL.GL_LINES)     
         # x axis
         GL.glColor4f(1.0, 0.0, 0.0, 1.0)        
         GL.glVertex3f(0, 0.0, 0.0)         
-        GL.glVertex3f(0.8, 0.0, 0.0)           
+        GL.glVertex3f(-0.8, 0.0, 0.0)           
 
         # y axis
         GL.glColor4f(0.0, 1.0, 0.0, 1.0)
         GL.glVertex3f(0.0, 0, 0.0)        
-        GL.glVertex3f(0.0, 0.8, 0.0)          
+        GL.glVertex3f(0.0, -0.8, 0.0)          
 
         # z axis
         GL.glColor4f(0.0, 0.0, 1.0, 1.0)     
@@ -72,14 +86,34 @@ class Gate:
         GL.glVertex3f(0.0, 0.0, 0.8)         
         GL.glEnd()                       
         # ---------------------------------------------------------------
+
+
+        GL.glPushMatrix()
+        GL.glScale(self.SCALE_K[0], self.SCALE_K[1], self.SCALE_K[2])
+
+        GL.glTranslatef(self.f_position_x_gt, self.f_position_y_gt, self.f_position_z_gt)
+        GL.glRotatef(self.f_rotate_x_gt, 1, 0, 0)
+        GL.glRotatef(self.f_rotate_y_gt, 0, 1, 0)
+        GL.glRotatef(self.f_rotate_z_gt, 0, 0, 1)
+
+        GL.glBegin(GL.GL_QUADS) 
+        self.up_part_gate_gt(0.6,0.6,0.2)
+        GL.glEnd() 
+        GL.glPopMatrix()
+
+        GL.glPushMatrix()
         GL.glScale(self.SCALE_K[0], self.SCALE_K[1], self.SCALE_K[2])
         GL.glTranslatef(self.f_position_x, self.f_position_y, self.f_position_z)
         GL.glRotatef(self.f_rotate_x, 1, 0, 0)
         GL.glRotatef(self.f_rotate_y, 0, 1, 0)
         GL.glRotatef(self.f_rotate_z, 0, 0, 1)
-        self.up_part_gate(0.6,0.6,0.2)
 
+        GL.glBegin(GL.GL_QUADS) 
+        self.up_part_gate_pred(0.6,0.6,0.2)
+        GL.glEnd()
+        GL.glPopMatrix()
 
+        
         GL.glPopMatrix()
 
         GLUT.glutSwapBuffers()
@@ -136,54 +170,40 @@ class Gate:
         GL.glColor3f(0, 0, 1)
         GL.glVertex3f(x-width,y-thickness,z)
 
-    def up_part_gate(self,height,width,thickness):
-        GL.glBegin(GL.GL_QUADS) 
+    def up_part_gate_pred(self,height,width,thickness):
+        
         self.draw_face1(0.6,0,0.6,height,width,thickness) ##*100
         self.draw_face2(0.6,0,0.6,height,width,thickness) ##*100
-
+    def up_part_gate_gt(self,height,width,thickness):
+        
+        x,y,z = 0.6,0,0.6
+        # White
+        GL.glColor3f(0, 1, 0)
+        GL.glVertex3f(x,y,z)
+        GL.glVertex3f(x,y-thickness,z)
+        GL.glVertex3f(x-width,y-thickness,z)
+        GL.glVertex3f(x-width,y,z)
+        GL.glVertex3f(x,y,z-height)
+        GL.glVertex3f(x,y-thickness,z-height)
+        GL.glVertex3f(x-width,y-thickness,z-height)
+        GL.glVertex3f(x-width,y,z-height)
+        GL.glVertex3f(x,y,z)
+        GL.glVertex3f(x,y,z-height)
+        GL.glVertex3f(x,y-thickness,z-height)
+        GL.glVertex3f(x,y-thickness,z)
+        GL.glVertex3f(x-width,y,z)
+        GL.glVertex3f(x-width,y,z-height)
+        GL.glVertex3f(x-width,y-thickness,z-height)
+        GL.glVertex3f(x-width,y-thickness,z)
          
-        # GL.glVertex3f(50,50,50)
-        # GL.glVertex3f(50.0,-50.0,50.0)
-        # GL.glVertex3f(-50.0,-50.0,50.0)
-        # GL.glVertex3f(-50.0,50.0,50.0)
-
-        # GL.glColor3f(1, 0, 0)
-        # GL.glVertex3f(50.0,50.0,-50.0)
-        # GL.glVertex3f(50.0,-50.0,-50.0)
-        # GL.glVertex3f(-50.0,-50.0,-50.0)
-        # GL.glVertex3f(-50.0,50.0,-50.0)
-
-
-        # GL.glColor3f(0, 1, 0)
-        # GL.glVertex3f(50.0,50.0,-50.0) 
-        # GL.glVertex3f(50.0,50.0,50.0)
-        # GL.glVertex3f(-50.0,50.0,50.0)
-        # GL.glVertex3f(-50.0,50.0,-50.0)
-
-        # GL.glVertex3f(50.0,-50.0,-50.0)
-        # GL.glVertex3f(50.0,-50.0,50.0)
-        # GL.glVertex3f(-50.0,-50.0,50.0)
-        # GL.glVertex3f(-50.0,-50.0,-50.0)
         
-        
-        # GL.glColor3f(0, 0, 1)
-        # GL.glVertex3f(50.0,50.0,50.0)
-        # GL.glVertex3f(50.0,50.0,-50.0)
-        # GL.glVertex3f(50.0,-50.0,-50.0)
-        # GL.glVertex3f(50.0,-50.0,50.0)
-        # GL.glVertex3f(-50.0,50.0,50.0)
-        # GL.glVertex3f(-50.0,50.0,-50.0)
-        # GL.glVertex3f(-50.0,-50.0,-50.0)
-        # GL.glVertex3f(-50.0,-50.0,50.0)
-
-        GL.glEnd() 
 
     def reshape(self,width,height):
         
         GL.glViewport(0, 0, width, height)
         GL.glMatrixMode(GL.GL_PROJECTION)
         fAspect = width / height
-        GLU.gluPerspective(20, fAspect, 1.0, 100000)
+        GLU.gluPerspective(25, fAspect, 1.0, 100000)
         GL.glMatrixMode(GL.GL_MODELVIEW)
         GL.glLoadIdentity()
         GL.glTranslatef(0,0,0)
@@ -197,13 +217,43 @@ class Gate:
         self.f_position_x = pose['p_x']
         self.f_position_y = pose['p_y']
         self.f_position_z = pose['p_z']  
+
+        self.f_rotate_x_gt = pose['r_x_gt']
+        self.f_rotate_y_gt = pose['r_y_gt']
+        self.f_rotate_z_gt = pose['r_z_gt']  
+        self.f_position_x_gt = pose['p_x_gt']
+        self.f_position_y_gt = pose['p_y_gt']
+        self.f_position_z_gt = pose['p_z_gt']  
         #self.depth = np.square(pow(self.f_position_x,2)+pow(self.f_position_y,2)+pow(self.f_position_z,2))
-        print (self.depth)
+        #print (self.depth)
         GLUT.glutPostRedisplay() 
         self.draw()
+        print ("pose",pose)
 
     def start(self):
         GLUT.glutMainLoop()
+
+    def pred_pose_callback(self,msg):
+        global pose 
+        pose['p_x'] = msg.pose.position.x
+        pose['p_y'] = msg.pose.position.y
+        pose['p_z'] = msg.pose.position.z
+        pose['r_x'] = msg.pose.orientation.x
+        pose['r_y'] = msg.pose.orientation.y
+        pose['r_z'] = msg.pose.orientation.z
+
+        #print ('pred_pose_callback')
+
+    def gt_pose_callback(self,msg):
+       
+        global pose 
+        pose['p_x_gt'] = msg.pose.position.x
+        pose['p_y_gt'] = msg.pose.position.y
+        pose['p_z_gt'] = msg.pose.position.z
+        pose['r_x_gt'] = msg.pose.orientation.x
+        pose['r_y_gt'] = msg.pose.orientation.y
+        pose['r_z_gt'] = msg.pose.orientation.z
+        #print ('gt_pose_callback')
 
 def test_pose_change(Handle):
         for num in range(0,360):
@@ -218,6 +268,7 @@ def test_pose_change(Handle):
             Handle.draw()
             time.sleep(0.1)
 
+
 if __name__ == "__main__":
              
     # GLUT.glutInit()                           
@@ -228,18 +279,18 @@ if __name__ == "__main__":
     # GL.glEnable(GL.GL_DEPTH_TEST)          
     # GL.glEnable(GL.GL_DITHER)
     #GL.glShadeModel(GL.GL_SMOOTH) 
-
+  
     Gate_Handle = Gate()
-    GLUT.glutDisplayFunc(Gate_Handle.draw)  
-    pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':30}
-    #Gate_Handle.draw()
-    try:
-        thread.start_new_thread(Gate_Handle.set_gate_pose , (pose,) )
-        thread.start_new_thread(Gate_Handle.start, () )
-    except:
-        print ("Error: unable to start thread")
-    
+    threading.Thread(target=Gate_Handle.start).start()
+    pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':0,\
+            'p_x_gt':0,'p_y_gt':0,'p_z_gt':0,'r_x_gt':0,'r_y_gt':0,'r_z_gt':0,'gate_num':0}
+   
+    img = Image_Capture()
     while 1:
-        pass
+        image = img.get_image()
+        if image is not None:
+            Gate_Handle.set_gate_pose(pose)
+            cv2.imshow("Camera", image)
+            cv2.waitKey (1)
       
 

@@ -113,7 +113,7 @@ class Px4Controller:
                     self.state = "DISARMED"
 
 
-            time.sleep(0.1)
+            time.sleep(0.02)
 
 
     def construct_target(self, x, y, z, yaw, yaw_rate = 1):

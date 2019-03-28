@@ -27,13 +27,14 @@ class Image_Capture:
     def image_callback(self,msg):
         #print("Received an image!")
         self.image_raw  = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-
+    def get_image(self):
+        return self.image_raw
 
 
 
 class Commander:
     def __init__(self):
-        
+        self.debug = False
         rospy.init_node("commander_node")
         rate = rospy.Rate(100)
         self.local_pose = None
@@ -45,13 +46,16 @@ class Commander:
         self.yaw_target_pub = rospy.Publisher('gi/set_pose/orientation', Float32, queue_size=10)
         self.custom_activity_pub = rospy.Publisher('gi/set_activity/type', String, queue_size=10)
         '''
-        suv mav postion pos 
+        sub mav postion pos 
         ''' 
         self.local_pose_sub = rospy.Subscriber("/gi/local_position/pose", PoseStamped, self.local_pose_callback)
 
     def Obtain_offboard_node(self,**dictArg):
         self.local_pose = dictArg['pose']
 
+    def get_current_mav_pose(self):
+        return self.local_pose
+    
     def local_pose_callback(self, msg):
         self.Obtain_offboard_node(pose = msg)
 
@@ -102,26 +106,29 @@ class Commander:
         cv2.imwrite('../image/'+'camera_image_'+str(chunk_id)+'_'+str(count)+'.bmp',img.image_raw )
     
     def collect_data(self,pos,img,count,h,r):
-        dict_dump = {} #  map_dict = {'p_x':0,'p_y':1,'p_z':2,'Quaternion_x':3,'Quaternion_y':4,'Quaternion_z':5,'Quaternion_w':6} 
-        #same with the xyzw quaternion, needed to be tranformed to polar coodinates or Euler Angles
-        dict_dump['p_x'] = pos.pose.position.x
-        dict_dump['p_y'] = pos.pose.position.y
-        dict_dump['p_z'] = pos.pose.position.z
-        dict_dump['Quaternion_x'] = pos.pose.orientation.x
-        dict_dump['Quaternion_y'] = pos.pose.orientation.y
-        dict_dump['Quaternion_z'] = pos.pose.orientation.z
-        dict_dump['Quaternion_w'] = pos.pose.orientation.w
+        
+        if self.debug == False:
+            dict_dump = {} #  map_dict = {'p_x':0,'p_y':1,'p_z':2,'Quaternion_x':3,'Quaternion_y':4,'Quaternion_z':5,'Quaternion_w':6} 
+            #same with the xyzw quaternion, needed to be tranformed to polar coodinates or Euler Angles
+            dict_dump['p_x'] = pos.pose.position.x
+            dict_dump['p_y'] = pos.pose.position.y
+            dict_dump['p_z'] = pos.pose.position.z
+            dict_dump['Quaternion_x'] = pos.pose.orientation.x
+            dict_dump['Quaternion_y'] = pos.pose.orientation.y
+            dict_dump['Quaternion_z'] = pos.pose.orientation.z
+            dict_dump['Quaternion_w'] = pos.pose.orientation.w
 
-        self.line_pd_dump.loc[count] =dict_dump
-        print ("chunk_id:", self.chunk_id,"count:",count)
-        global image_fname
-        cv2.imwrite('../'+image_fname + '/image/' + 'camera_image_'+str(self.chunk_id)+'_'+str(count)+'_'+str(h)+'_'+str(r)+'.bmp',img.image_raw)
-        #print (self.line_pd_dump.loc[count])
+            self.line_pd_dump.loc[count] =dict_dump
+            print ("chunk_id:", self.chunk_id,"count:",count)
+            global image_fname
+            cv2.imwrite('../'+image_fname + '/image/' + 'camera_image_'+str(self.chunk_id)+'_'+str(count)+'_'+str(round(h,2))+'_'+str(round(r,2))+'.bmp',img.image_raw)
+            #print (self.line_pd_dump.loc[count])
 
-        if self.b_one_loop_completed == True:
-            path = '../'+pose_fname + '/pose/' +'pose_'+str(self.chunk_id)+'_'+str(h)+'_'+str(r)+'.h5'
-            self.line_pd_dump.to_hdf(path,key = 'pose',mode='w')
-
+            if self.b_one_loop_completed == True:
+                path = '../'+pose_fname + '/pose/' +'pose_'+str(self.chunk_id)+'_'+str(round(h,2))+'_'+str(round(r,2))+'.h5'
+                self.line_pd_dump.to_hdf(path,key = 'pose',mode='w')
+        else :
+            pass
     '''
     control drone to complete a circle movement
     '''
@@ -151,21 +158,6 @@ class Commander:
         count = 1
 
         if direction_flag == 'Anticlockwise':
-            '''
-            0-90 degrees
-            ''' 
-            for theta in range(1,90):
-                sin_theta = np.sin(np.deg2rad(theta))
-                cos_theta = np.cos(np.deg2rad(theta))
-                print (sin_theta,cos_theta)
-                next_x = r-r * cos_theta + start_x
-                next_y = -r * sin_theta + start_y
-                print ('----',next_x,next_y,'----')
-                con.move(next_x,next_y,h,theta,False)
-                time.sleep(time_step)
-                con.collect_data(con.local_pose,img,count,h,r)
-                count = count+1
-
             '''
             90-180 degrees
             ''' 
@@ -269,7 +261,7 @@ class Commander:
             '''
             270-360 degrees
             ''' 
-            for theta in range(90,-1,0):
+            for theta in range(90,-1,-1):
                 sin_theta = np.sin(np.deg2rad(theta))
                 cos_theta = np.cos(np.deg2rad(theta))
                 print (sin_theta,cos_theta)
@@ -284,6 +276,113 @@ class Commander:
                 con.collect_data(con.local_pose,img,count,h,r)
         time.sleep(5)
 
+    def scan_gate(self,c_x,c_y,c_z,h,r,img,con):
+
+        self.b_one_loop_completed = False
+        self.chunk_id = self.chunk_id + 1
+        '''
+        center of gate is (10-0.1,10+0.5,1.931) , 0.325 and 0.5 are the biases of the coordinate of gate. The unit is /m
+        '''
+        bias_x,bias_y = -0.1,0.5
+        if r>c_x: 
+            print ("The radius is too big!!! please input a number < "+str(c_x))
+            return 
+
+        '''
+        move to the begin point
+        '''
+        start_x = c_x -r +bias_x
+        start_y = c_y + bias_y
+        for i in range(10):
+            con.move(start_x,start_y,h,0,False)
+            time.sleep(0.5)
+        print ('start:',(start_x,start_y,h))
+        time.sleep(5)
+        time_step = 0.3
+        count = 1
+        for theta in range(1,60):
+                sin_theta = np.sin(np.deg2rad(theta))
+                cos_theta = np.cos(np.deg2rad(theta))
+                print (sin_theta,cos_theta)
+                next_x = r-r * cos_theta + start_x
+                next_y = -r * sin_theta + start_y
+                print ('----',next_x,next_y,'----')
+                con.move(next_x,next_y,h,theta,False)
+                time.sleep(time_step)
+                con.collect_data(con.local_pose,img,count,h,r)
+                count = count+1
+        for theta in range(60,0,-1):
+                sin_theta = np.sin(np.deg2rad(theta))
+                cos_theta = np.cos(np.deg2rad(theta))
+                print (sin_theta,cos_theta)
+                next_x = r-r * cos_theta + start_x
+                next_y = -r * sin_theta + start_y
+                print ('----',next_x,next_y,'----')
+                con.move(next_x,next_y,h,theta,False)
+                time.sleep(time_step)
+                con.collect_data(con.local_pose,img,count,h,r)
+                count = count+1
+        for theta in range(0,-60,-1):
+                _theta = theta + 90
+                sin_theta = np.sin(np.deg2rad(_theta))
+                cos_theta = np.cos(np.deg2rad(_theta))
+                print (sin_theta,cos_theta)
+                next_x = r-r * sin_theta + start_x
+                next_y = r * cos_theta + start_y
+                print ('----',next_x,next_y,'----')
+                con.move(next_x,next_y,h,theta,False)
+                time.sleep(time_step)
+                con.collect_data(con.local_pose,img,count,h,r)
+                count = count+1
+        for theta in range(-60,0):
+                _theta = theta + 90
+                sin_theta = np.sin(np.deg2rad(_theta))
+                cos_theta = np.cos(np.deg2rad(_theta))
+                print (sin_theta,cos_theta)
+                next_x = r-r * sin_theta + start_x
+                next_y = r * cos_theta + start_y
+                print ('----',next_x,next_y,'----')
+                con.move(next_x,next_y,h,theta,False)
+                time.sleep(time_step)
+                con.collect_data(con.local_pose,img,count,h,r)
+                count = count+1
+
+        self.b_one_loop_completed = True
+        con.collect_data(con.local_pose,img,count,h,r)
+        time.sleep(5)
+
+    def rectangle_scan_gate(self,c_x,c_y,c_h,x,y,h,img,con):
+        self.b_one_loop_completed = False
+        self.chunk_id = self.chunk_id + 1
+        count = 1
+        dis = np.sqrt(pow(c_x-x,2)+pow(c_y-y,2))
+        horizon_delta = (c_y - y)
+        center_theta = int(np.rad2deg(np.arcsin(horizon_delta/dis)))
+        print (x,y,center_theta)
+
+        for i in range(10):
+            con.move(x,y,h,center_theta,False)
+            time.sleep(0.01)
+        time.sleep(4)
+
+        for theta in range(center_theta,center_theta-30,-1):
+            con.move(x,y,h,theta,False)
+            time.sleep(0.1)
+            con.collect_data(con.local_pose,img,count,h,center_theta)
+            count = count+1
+            
+        for i in range(10):
+            con.move(x,y,h,center_theta,False)
+            time.sleep(0.01)
+        time.sleep(4)
+        for theta in range(center_theta,center_theta+30,1):
+            con.move(x,y,h,theta,False)
+            time.sleep(0.1)
+            con.collect_data(con.local_pose,img,count,h,center_theta)
+            count = count+1
+
+        self.b_one_loop_completed = True
+        con.collect_data(con.local_pose,img,count,h,center_theta)
     '''
     control drone to pass through the ring
     size of ring:
@@ -302,8 +401,8 @@ if __name__ == "__main__":
     image_fname = ''
     con = Commander()
     img = Image_Capture()
-    debug = False
-    if debug == False:
+
+    if con.debug == False:
         pose_fname = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()) 
         image_fname = pose_fname
         os.makedirs ('../'+pose_fname +'/pose/')
@@ -326,24 +425,21 @@ if __name__ == "__main__":
     # con.circle_move(10,10,1.931,2,2,'Clockwise')
     # con.circle_move(10,10,1.931,2.5,2,'Clockwise')
 
-    con.circle_move(10,10,1.931,1.931,5,'Anticlockwise')
-    con.circle_move(10,10,1.931,1.931,4.5,'Anticlockwise')
-    con.circle_move(10,10,1.931,1.931,4,'Anticlockwise')
-    con.circle_move(10,10,1.931,1.931,3.5,'Anticlockwise')
-    con.circle_move(10,10,1.931,1.931,3,'Anticlockwise')
-    con.circle_move(10,10,1.931,1.931,2.5,'Anticlockwise')
-    con.circle_move(10,10,1.931,1.931,2,'Anticlockwise')
+    # for height in np.arange(1.5,2.5,0.2):
+    #     for radius in np.arange(1.5,5.1,0.2):
+    #         con.scan_gate(10,10,1.931,height,radius,img,con)
+    #         time.sleep(1)
 
-    con.circle_move(10,10,1.931,1.931,1.3,'Anticlockwise')
-    con.circle_move(10,10,1.931,1.931,1.5,'Anticlockwise')
-    con.circle_move(10,10,1.931,1.931,1.7,'Anticlockwise')
+    for i in range(10):
+        con.move(9,13,1.5,-68,False)
+        time.sleep(0.01)
+    time.sleep(10)
 
-    con.circle_move(10,10,1.931,1,2,'Anticlockwise')
-    con.circle_move(10,10,1.931,1.5,2,'Anticlockwise')
-    con.circle_move(10,10,1.931,2,2,'Anticlockwise')
-    con.circle_move(10,10,1.931,2.5,2,'Anticlockwise')
-    time.sleep(1)
-
+    for x in np.arange(9,4,-0.2):
+         for y in np.arange(13,8,-0.2):
+            for height in np.arange(1.7,2.2,0.5):
+                con.rectangle_scan_gate(10,10.5,1.931,x,y,height,img,con)
+                time.sleep(2)
     time.sleep(0.5)
 
 
