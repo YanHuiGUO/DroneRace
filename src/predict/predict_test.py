@@ -17,7 +17,7 @@ import time
 class Predcit:
     def __init__(self,model_file):
         self.model = get_DronNet_model(3)
-        self.model = K.models.load_model(str(Path("../models/multigate.hdf5")))
+        self.model = K.models.load_model(str(Path("../models/weights.032-0.146.hdf5")))
         self.Gate_Handle = Gate()
         self.set_pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':0,\
                 'p_x_gt':0,'p_y_gt':0,'p_z_gt':0,'r_x_gt':0,'r_y_gt':0,'r_z_gt':0}
@@ -27,11 +27,11 @@ class Predcit:
         except:
             print ("Error: unable to start thread")
     def get_predict(self,image):
-        pred = self.model.predict(np.expand_dims(image,0))[0]
-        r = pred[0] * parse.get_r_max()
-        theta = pred[1] * parse.get_theta_max()
-        phi = pred[2] * parse.get_phi_max()
-        yaw = pred[3] * parse.get_yaw_max()
+        pred = self.model.predict(np.expand_dims(image,0))
+        r = pred[0] * (parse.get_r_max()-parse.get_r_min()) + parse.get_r_min()
+        theta = pred[1] * (parse.get_theta_max() - parse.get_theta_min()) + parse.get_theta_min()
+        phi = pred[2] * (parse.get_phi_max() - parse.get_phi_min()) +  parse.get_phi_min()
+        yaw = pred[3] * (parse.get_yaw_max() -  parse.get_yaw_min()) +parse.get_yaw_min()
         horizen_dis =  r * np.sin(np.deg2rad(theta))
         p_x = horizen_dis * np.cos(np.deg2rad(phi))
         p_y = horizen_dis * np.sin(np.deg2rad(phi)) # phi
@@ -44,9 +44,9 @@ class Predcit:
 
 if __name__== '__main__':
     pass #
-    model = get_DronNet_model(3)
-    model = K.models.load_model(str(Path("../models/multigate.hdf5")))
-    test_file = ["../../sample_data/"]
+    #model = get_DronNet_model(3)
+    model = K.models.load_model(str(Path("../models/weights.001-0.255.hdf5")))
+    test_file = ["../../2019-03-21-14-05-35/"]
     image_paths=(list(Path(test_file[0]+'image/').glob("*.bmp")))
     image_paths= sorted(image_paths)
     #print (image_paths)
@@ -68,14 +68,15 @@ if __name__== '__main__':
         image = pair_data['image']
 
         start = time.clock()
-        pred = model.predict(np.expand_dims(image,0))[0]
+        pred = model.predict(np.expand_dims(image,0))
+
         elapsed = (time.clock() - start)
         print("Time used:",elapsed)
 
-        r = pred[0] * parse.get_r_max()
-        theta = pred[1] * parse.get_theta_max()
-        phi = pred[2] * parse.get_phi_max()
-        yaw = pred[3] * parse.get_yaw_max()
+        r = pred[0] * (parse.get_r_max()-parse.get_r_min()) + parse.get_r_min()
+        theta = pred[1] * (parse.get_theta_max() - parse.get_theta_min()) + parse.get_theta_min()
+        phi = pred[2] * (parse.get_phi_max() - parse.get_phi_min()) +  parse.get_phi_min()
+        yaw = pred[3] * (parse.get_yaw_max() -  parse.get_yaw_min()) +parse.get_yaw_min()
         horizen_dis =  r * np.sin(np.deg2rad(theta))
         p_x = horizen_dis * np.cos(np.deg2rad(phi))
         p_y = horizen_dis * np.sin(np.deg2rad(phi)) # phi

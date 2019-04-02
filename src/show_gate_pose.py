@@ -33,7 +33,9 @@ class Gate:
         self.EYE = np.array([1, 1, 1])                     
         self.LOOK_AT = np.array([0.0, 0.0, 0.0])                 
         self.EYE_UP = np.array([-1.0, -1.0, 0]) 
-        self.SCALE_K = np.array([0.1,0.1,0.1])  
+        self.SCALE_K = np.array([0.1,0.1,0.1])
+        self.pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':0,\
+            'p_x_gt':0,'p_y_gt':0,'p_z_gt':0,'r_x_gt':0,'r_y_gt':0,'r_z_gt':0,'gate_num':0}
         GLUT.glutInit()                           
         GLUT.glutInitDisplayMode(GLUT.GLUT_DOUBLE | GLUT.GLUT_RGBA | GLUT.GLUT_DEPTH)
         GLUT.glutInitWindowSize(WIN_W, WIN_H)
@@ -228,45 +230,45 @@ class Gate:
         #print (self.depth)
         GLUT.glutPostRedisplay() 
         self.draw()
-        print ("pose",pose)
+        print ("pose",pose )
 
     def start(self):
         GLUT.glutMainLoop()
 
     def pred_pose_callback(self,msg):
-        global pose 
-        pose['p_x'] = msg.pose.position.x
-        pose['p_y'] = msg.pose.position.y
-        pose['p_z'] = msg.pose.position.z
-        pose['r_x'] = msg.pose.orientation.x
-        pose['r_y'] = msg.pose.orientation.y
-        pose['r_z'] = msg.pose.orientation.z
+        
+        self.pose ['p_x'] = msg.pose.position.y
+        self.pose ['p_y'] = -msg.pose.position.x
+        self.pose ['p_z'] = msg.pose.position.z
+        self.pose ['r_x'] = msg.pose.orientation.x
+        self.pose ['r_y'] = msg.pose.orientation.y
+        self.pose['r_z'] = msg.pose.orientation.z
 
         #print ('pred_pose_callback')
 
     def gt_pose_callback(self,msg):
        
-        global pose 
-        pose['p_x_gt'] = msg.pose.position.x
-        pose['p_y_gt'] = msg.pose.position.y
-        pose['p_z_gt'] = msg.pose.position.z
-        pose['r_x_gt'] = msg.pose.orientation.x
-        pose['r_y_gt'] = msg.pose.orientation.y
-        pose['r_z_gt'] = msg.pose.orientation.z
+        
+        self.pose ['p_x_gt'] = 0#msg.pose.position.y
+        self.pose ['p_y_gt'] = 0#-msg.pose.position.x
+        self.pose ['p_z_gt'] = msg.pose.position.z
+        self.pose ['r_x_gt'] = msg.pose.orientation.x
+        self.pose ['r_y_gt'] = msg.pose.orientation.y
+        self.pose ['r_z_gt'] = 0#msg.pose.orientation.z
         #print ('gt_pose_callback')
 
 def test_pose_change(Handle):
-        for num in range(0,360):
-            Handle.f_rotate_x = num
-            Handle.f_rotate_y = num
-            Handle.f_rotate_z = num  
-            # GL.glRotatef(Handle.f_rotate_x, 1, 0, 0)
-            # GL.glRotatef(Handle.f_rotate_y, 0, 1, 0)
-            # GL.glRotatef(Handle.f_rotate_z, 0, 0, 1)
-            print (Handle.f_rotate_x,Handle.f_rotate_y,Handle.f_rotate_z)
-            GLUT.glutPostRedisplay() 
-            Handle.draw()
-            time.sleep(0.1)
+    for num in range(0,360):
+        Handle.f_rotate_x = num
+        Handle.f_rotate_y = num
+        Handle.f_rotate_z = num  
+        # GL.glRotatef(Handle.f_rotate_x, 1, 0, 0)
+        # GL.glRotatef(Handle.f_rotate_y, 0, 1, 0)
+        # GL.glRotatef(Handle.f_rotate_z, 0, 0, 1)
+        print (Handle.f_rotate_x,Handle.f_rotate_y,Handle.f_rotate_z)
+        GLUT.glutPostRedisplay() 
+        Handle.draw()
+        time.sleep(0.1)
 
 
 if __name__ == "__main__":
@@ -285,12 +287,26 @@ if __name__ == "__main__":
     pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':0,\
             'p_x_gt':0,'p_y_gt':0,'p_z_gt':0,'r_x_gt':0,'r_y_gt':0,'r_z_gt':0,'gate_num':0}
    
-    img = Image_Capture()
+    '''
+    used to get single image in gazebo
+    '''
+    # img = Image_Capture()
+    # count = 1
+    # while 1:
+    #     image = img.get_image()
+    #     if image is not None:
+    #         Gate_Handle.set_gate_pose(pose)
+    #         cv2.imshow("Camera", image)
+    #         cv2.imwrite('image_from_main' + '/camera_image_'+'1'+ '_' +str(count)+'_1.5_1.5'+'.bmp',img.image_raw)
+    #         count = count +1
+    #         cv2.waitKey (0)
+
+    #img = Image_Capture()
     while 1:
-        image = img.get_image()
-        if image is not None:
-            Gate_Handle.set_gate_pose(pose)
-            cv2.imshow("Camera", image)
-            cv2.waitKey (1)
+        #image = img.get_image()
+        #if image is not None:
+        Gate_Handle.set_gate_pose(Gate_Handle.pose)
+            #cv2.imshow("Camera", image)
+            #cv2.waitKey (1)
       
 

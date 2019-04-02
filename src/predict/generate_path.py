@@ -59,7 +59,7 @@ class Generate_Path:
         floorPoint  = [0,0,0]  # a point on the floor
         floorNormal = [0,0,1]  # we want to be in this direction of the point (upwards)
         positionFeasible = traj.check_position_feasibility(floorPoint, floorNormal)
-        print("Position feasibility result: ", quadtraj.StateFeasibilityResult.to_string(positionFeasible), "(", positionFeasible, ")")
+        #print("Position feasibility result: ", quadtraj.StateFeasibilityResult.to_string(positionFeasible), "(", positionFeasible, ")")
         return traj
 
 if __name__== '__main__':

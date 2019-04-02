@@ -19,22 +19,38 @@ class Parse_helper:
         #self.file_path_pose = pose_f#['../pose/2019-03-15-16-06-18','']
         self.image = None
         self.pose = None
+        
         self.phi_max = 90
+        self.phi_min = -90
+        
         self.theta_max = 90
-        self.r_max = 6.5 #(horizon 6.5m, height 0.8m)
-        self.yaw_max = 90 #+-180
+        self.theta_min = 0
+        
+        self.r_max = 6.5 #(horizon 6m, height 2m)
+        self.r_min = 0.2 # for the minimum offset
+        
+        self.yaw_max = 90 #+-90
+        self.yaw_min = -90
     
     def get_yaw_max(self):
         return self.yaw_max
+    def get_yaw_min(self):
+        return self.yaw_min
     
     def get_r_max(self):
         return self.r_max
+    def get_r_min(self):
+        return self.r_min
     
     def get_phi_max(self):
         return self.phi_max
+    def get_phi_min(self):
+        return self.phi_min
     
     def get_theta_max(self):
         return self.theta_max
+    def get_theta_min(self):
+        return self.theta_min
 
     def read_image_paths(self,idx_file = 0):
         pass
@@ -47,7 +63,7 @@ class Parse_helper:
         #print (re.findall(r"\d+_\d+_\d+\.?\d*_\d+\.?\d*",img_path_tmp))
         print (img_path_tmp)
         info = re.findall(r"\d+_\d+_\d+\.?\d*_-?\d+\.*\d*",img_path_tmp)[0].split('_')
-        print('info:',info)
+        #print('info:',info)
         chunk_id,id_frame,height,radius = info[0],info[1],info[2],info[3]
         
         pose_path = Path(self.file_group+'pose/pose_'+chunk_id+'_'+str(height)+'_'+str(radius)+'.h5')
@@ -95,11 +111,11 @@ class Parse_helper:
     def generate_train_data(self,gate_pose,mav_pose):
         '''
         data_format: pos_x, pos_y, pos_z, r_x,_p_y, y_z
-        y
-        |
-        |
-        |
-        ------------> x  (phi is the angle with x,theta is the angle with height)
+                      x
+                      |
+                      |
+                      |
+        y<------------  (phi is the angle with x,theta is the angle with height)
         '''
         horizon_dis = np.sqrt(pow(gate_pose[0]-mav_pose[0],2)+pow(gate_pose[1]-mav_pose[1],2))
         sin_phi = (gate_pose[1]-mav_pose[1])/horizon_dis
@@ -111,7 +127,7 @@ class Parse_helper:
 
         yaw_delta = (gate_pose[5]-mav_pose[5])
 
-        return np.array([[r,theta,phi,yaw_delta],[r/self.r_max, theta/self.theta_max, phi/self.theta_max, yaw_delta/self.yaw_max],[sin_theta,sin_phi]])
+        return np.array([[r,theta,phi,yaw_delta],[(r-self.r_min)/(self.r_max - self.r_min), (theta-self.theta_min)/(self.theta_max - self.theta_min), (phi - self.phi_min)/(self.phi_max - self.phi_min),(yaw_delta-self.yaw_min)/(self.yaw_max - self.yaw_min)],[sin_theta,sin_phi]])
 
 
 
