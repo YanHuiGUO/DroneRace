@@ -20,10 +20,10 @@ class Execute_Class:
         self.pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':0}
         self.pred_r =0 # r parameter
         self.optimal_path = None
-        self.Duration = 2
+        self.Duration = 3
         self.update_path = False
         self.con  = Commander()
-        self.path_queue_size = 50
+        self.path_queue_size = 100
         self.goal_pose = np.zeros(4)
         self.mav_pose = np.zeros(6)
         self.path_queue = queue.Queue(self.path_queue_size)
@@ -34,9 +34,9 @@ class Execute_Class:
         self.pred_pose_sub = rospy.Subscriber("gi/gate_pose_pred/pose_for_path", PoseStamped, self.pred_pose_callback)
 
         # Define the input limits:
-        fmin = 0.1  #[m/s**2]
-        fmax = 2 #[m/s**2]
-        wmax = 0.79 #[rad/s]
+        fmin = 5  #[m/s**2]
+        fmax = 25 #[m/s**2]
+        wmax = 20 #[rad/s]
         minTimeSec = 0.02 #[s]
         # Define how gravity lies:
         gravity = [0,0,-9.81]
@@ -81,7 +81,7 @@ class Execute_Class:
         the coordinate between the path planner and gazebo is different
         '''
         pos0 = [self.mav_pose [0], self.mav_pose [1], self.mav_pose [2]] #position
-        vel0 = [-np.cos(np.deg2rad(self.mav_pose [5])), np.sin(np.deg2rad(self.mav_pose [5])),0] #velocity
+        vel0 = self.path_handle.generate_vel_from_yaw(self.mav_pose[5])
         acc0 = [0, 0, 0] #acceleration
 
         
@@ -90,8 +90,12 @@ class Execute_Class:
         self.goal_pose [2] = np.clip(self.mav_pose[2] + self.pose['p_z'],1.9,2.5)
         self.goal_pose [3] = self.mav_pose [5] + self.pose['r_z']
 
+        self.goal_pose [3] = -360 + self.goal_pose [3] if self.goal_pose [3] > 180 else self.goal_pose [3]
+        self.goal_pose [3] =  360 + self.goal_pose [3] if self.goal_pose [3] <-180 else self.goal_pose [3]
+
         posf = [self.goal_pose [0],self.goal_pose [1], self.goal_pose [2]]  # position
-        velf = [-np.cos(np.deg2rad(self.goal_pose [3])), np.sin(np.deg2rad(self.goal_pose[3])), 0]  # velocity
+
+        velf = self.path_handle.generate_vel_from_yaw(self.goal_pose[3])  # velocity
         accf = [0, 0, 0]  # acceleration
         #self.Duration = self.pred_r*1.1
         self.optimal_path = self.path_handle.get_paths_list(pos0,vel0,acc0,posf,velf,accf,self.Duration)
@@ -137,11 +141,15 @@ class Execute_Class:
 
             if(self.path_queue.empty()== True):
                 self.generate_path() 
+            start_t = self.Duration - self.path_queue_size*time_interval
+            stop_t  = self.Duration
+            #yaw_delta = self.pose['r_z']/self.path_queue_size
+            yaw_a = self.pose['r_z']/(np.exp(stop_t - time_interval)-np.exp(start_t)) #[),so stop_t - time_interval
+            yaw_b = self.mav_pose[5] - yaw_a * np.exp(start_t)
 
-            yaw_delta = self.pose['r_z']/self.path_queue_size
-            
+
             theta = self.mav_pose[5]
-            for t in np.arange(self.Duration-self.path_queue_size*time_interval ,self.Duration,time_interval):
+            for t in np.arange(start_t, stop_t,time_interval):
 
                 '''
                 break down the present path and use the replanning path
@@ -154,9 +162,14 @@ class Execute_Class:
                 next_z = 1.93#np.float(self.optimal_path.get_position(t)[2])
 
                 self.path_generation_pub.publish(Vector3(next_x,next_y,next_z))
-                
-                #theta =  self.path_handle.generate_yaw_from_vel(self.optimal_path.get_velocity(t),self.mav_pose[5])
-                theta = theta + yaw_delta
+                #print ('get_normal_vector(t):',self.optimal_path.get_normal_vector(t),self.path_handle.generate_yaw_from_vel(self.optimal_path.get_normal_vector(t)))
+                #print ('get_velocity(t):',self.optimal_path.get_velocity(t),self.path_handle.generate_yaw_from_vel(self.optimal_path.get_velocity(t)))
+                #theta =  self.path_handle.generate_yaw_from_vel(self.optimal_path.get_normal_vector(t),self.mav_pose[5])
+                theta = yaw_a * np.exp(t) + yaw_b#theta + yaw_delta
+
+                '''
+                deal with the point of -180->180
+                '''
                 theta = -360 + theta if theta > 180 else theta
                 theta =  360 + theta if theta <-180 else theta
                 

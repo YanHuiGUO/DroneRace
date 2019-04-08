@@ -1,6 +1,7 @@
 import sys
 sys.path.append('../')
 import numpy as np
+import math
 import quadrocoptertrajectory as quadtraj
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt 
@@ -31,16 +32,43 @@ class Generate_Path:
     input /degree
     '''
     def generate_vel_from_yaw(self, yaw):
-        return [np.cos(np.deg2rad(yaw)), np.sin(np.deg2rad(yaw)), 0]
+        if yaw<-180 or yaw>180:
+             raise RuntimeError("yaw is over the normal range")
+        return np.array([np.sin(np.deg2rad(yaw)),-np.cos(np.deg2rad(yaw)),0])
+        
+        
+        
 
     '''
     return /degree
     '''
-    def generate_yaw_from_vel(self, vel,cur):
-        if (np.abs(vel[1])>1):
-            return cur
-        
-        return np.rad2deg(np.arcsin(vel[1]))
+    def generate_yaw_from_vel(self, vel):
+        x = vel[0]
+        y = vel[1]
+        abs_yaw = 0
+        if (x==0 and y==0):
+            return 0 
+        if (x>=0 and y>0):
+            if(x ==0 ):
+                return -180
+            abs_yaw = np.rad2deg(math.atan(math.fabs (y) / math.fabs(x)))
+            return abs_yaw + 90
+        elif (x<=0 and y>0):
+            if(x ==0 ):
+                return -180
+            abs_yaw = np.rad2deg(math.atan(math.fabs (y) / math.fabs(x)))
+            return -90 - abs_yaw
+        elif (x<0 and y<=0):
+            if(y ==0 ):
+                return -90
+            abs_yaw = np.rad2deg(math.atan(math.fabs (y) / math.fabs(x)))
+            return -(90 - abs_yaw)
+        elif (x>0 and y<=0):
+            if(y ==0 ):
+                return 90
+            abs_yaw = np.rad2deg(math.atan(math.fabs (y) / math.fabs(x)))
+            return 90 - abs_yaw
+        return abs_yaw
 
     '''
     input should be six lists

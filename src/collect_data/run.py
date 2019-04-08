@@ -25,6 +25,8 @@ class Run_Circle:
         self.b_one_loop_completed = False        
         self.h5_chunk_size = 32 ## 0 is excluded
         self.chunk_id = 0
+        self.count = 0
+        self.circle_num  = 1 
         self.line_pd_dump = pd.DataFrame(np.zeros((self.h5_chunk_size,7)), columns = ["p_x","p_y","p_z","Quaternion_x","Quaternion_y","Quaternion_z","Quaternion_w"])
         rospy.init_node("pred_pose_node")
         rate = rospy.Rate(100)
@@ -52,7 +54,7 @@ class Run_Circle:
             [17.0, 30.0, 1.93, 0, 0, np.rad2deg(2.8)],\
             [11.0, 29.0, 1.93, 0, 0, np.rad2deg(-2.5)],\
             [ 7.5, 25.0, 1.93, 0, 0, np.rad2deg(-1.8)],\
-            [ 5.3, 22.0, 1.93, 0, 0, np.rad2deg(-2.3)],\
+            [ 5.0, 22.3, 1.93, 0, 0, np.rad2deg(-2.3)],\
             [ 4.0, 17.3, 1.93, 0, 0, np.rad2deg(-1.3)],\
             [ 5.5, 13.0, 1.93, 0, 0, np.rad2deg(-0.7)]])
     
@@ -128,15 +130,17 @@ class Run_Circle:
         self.line_pd_dump.loc[count] =dict_dump
         print ("chunk_id:", self.chunk_id,"count:",count)
         global image_fname
-        cv2.imwrite('../../'+image_fname + '/image/' + 'camera_image_'+str(self.chunk_id)+'_'+str(count)+'_'+str(circle_num)+'_'+str(circle_num)+'.bmp',img.image_raw)
+        cv2.imwrite('../../'+image_fname + '/image/' + 'camera_image_'+str(self.chunk_id)+'_'+str(count)+'_'+str(circle_num)+'_'+str(self.now_gate)+'.bmp',img.image_raw)
         #print (self.line_pd_dump.loc[count])
 
         if self.b_one_loop_completed == True:
+            self.b_one_loop_completed = False
             path = '../../'+pose_fname + '/pose/' +'pose_'+str(self.chunk_id)+'_'+str(circle_num)+'_' + str(circle_num)+'.h5'
+            self.chunk_id = self.chunk_id + 1
             self.line_pd_dump.to_hdf(path,key = 'pose',mode='w')
 
     
-    def get_relavtive_pos(self):
+    def get_relavtive_pos(self,img):
         
         pos= self.local_pose
         #print(pos)
@@ -173,18 +177,23 @@ class Run_Circle:
         check the mav whether fly though a gate and switch its goal to next one
         '''
         dis = math.sqrt(pow(p_x,2)+pow(p_y,2))
-        if(dis <= 1 and self.b_switch_gate == False):
+        if(dis <= 0.8 and self.b_switch_gate == False):
             self.b_switch_gate = True
             self.start = time.time()
         
         if(self.b_switch_gate ==  True):
             delta_time = time.time() - self.start  
-            if(delta_time > 0.5):
+            if(delta_time > 0.1):
                 self.b_switch_gate = False
                 self.now_gate = self.now_gate + 1
                 if (self.now_gate>len(self.gate_pose_group)-1):
                     self.now_gate = 0
                     self.b_one_loop_completed = True
+                    self.collect_data(pos,img,self.count,self.circle_num)
+                    self.circle_num = self.circle_num + 1
+                    if (self.circle_num > 10):
+                        os._exit()
+                    
                 '''
                 redefine the goal
                 '''
@@ -215,7 +224,8 @@ class Run_Circle:
         print ('self.b_switch_gate:',self.b_switch_gate)
         self.set_pose['p_x'], self.set_pose['p_y'],self.set_pose['p_z'],self.set_pose['r_z']  = p_x, p_y, p_z, yaw
         self.set_pose['p_x_gt'],self.set_pose['p_y_gt'],self.set_pose['p_z_gt'],self.set_pose['r_z_gt']  = gate_pose[0],gate_pose[1],gate_pose[2],gate_pose[5]
-
+        self.collect_data(pos,img,self.count,self.circle_num)
+        self.count = self.count + 1
         return np.array([p_x,p_y,p_z,yaw])
         
     '''
@@ -239,7 +249,7 @@ class Run_Circle:
         image = img.get_image()
         
         if image is not None:
-            rev_pos = self.get_relavtive_pos()
+            rev_pos = self.get_relavtive_pos(img)
             print ("rev_pos:",rev_pos)
             self.publish_gate_pose(self.set_pose) ##  time.sleep 0.01 delay 0.01s
             print ('~~~~~~~~~~~~~*************~~~~~~~~~~~~~~')
