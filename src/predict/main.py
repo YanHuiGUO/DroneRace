@@ -28,7 +28,7 @@ class MAV_Jump_Ring:
         rospy.init_node("pred_pose_node")
         rate = rospy.Rate(100)
         #self.model = get_DronNet_model(3)
-        self.model = K.models.load_model(str(Path("../models/weights.007-0.169.hdf5")))
+        self.model = K.models.load_model(str(Path("../models/eleven.hdf5")))
         #self.Gate_Handle = Gate()
 
         self.set_pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':0,\
@@ -74,8 +74,8 @@ class MAV_Jump_Ring:
 
 
     def get_predict(self,image):
-        r_max = 6.5#7
-        r_min = 0.2 
+        r_max = 10#7
+        r_min = 0.1 
 
         phi_max = 90
         phi_min = -90
@@ -83,8 +83,8 @@ class MAV_Jump_Ring:
         theta_max = 90
         theta_min = 0
 
-        yaw_max = 90 #180
-        yaw_min = -90
+        yaw_max = 360 #180
+        yaw_min = -360
 
         pred = self.model.predict(np.expand_dims(image,0))
 
@@ -121,16 +121,17 @@ class MAV_Jump_Ring:
         
         #the postion of all gates
         gate_pose_group = np.array([\
-            [10,10.5,1.93,0,0,np.rad2deg(-0.3)],\
-            [13,12.5,1.93,0,0,np.rad2deg(0.35)],\
-            [16,11.9,1.93,0,0,np.rad2deg(0)],\
-            [18.5,11.5,1.93,0,0,np.rad2deg(-0.4)],\
-            [21,10.5,1.93,0,0,np.rad2deg(-0.7)],\
-            [22.5,8.5,1.93,0,0,np.rad2deg(-1.2)],\
-            [10,10.5,1.93,0,0,np.rad2deg(-0.3)],\
-            [10,10.5,1.93,0,0,np.rad2deg(-0.3)],\
-            [10,10.5,1.93,0,0,np.rad2deg(-0.3)],\
-            [10,10.5,1.93,0,0,np.rad2deg(-0.3)]])
+            [10.0, 10.0, 1.93, 0, 0, np.rad2deg(0)],\
+            [15.5, 11.0, 1.93, 0, 0, np.rad2deg(0.55)],\
+            [20.0, 14.0, 1.93, 0, 0, np.rad2deg(0.9)],\
+            [22.8, 19.0, 1.93, 0, 0, np.rad2deg(1.6)],\
+            [22.0, 25.0, 1.93, 0, 0, np.rad2deg(2.0)],\
+            [17.0, 30.0, 1.93, 0, 0, np.rad2deg(2.8)],\
+            [11.0, 29.0, 1.93, 0, 0, np.rad2deg(-2.5)],\
+            [ 7.5, 25.0, 1.93, 0, 0, np.rad2deg(-1.8)],\
+            [ 5.0, 22.3, 1.93, 0, 0, np.rad2deg(-2.3)],\
+            [ 4.0, 17.3, 1.93, 0, 0, np.rad2deg(-1.3)],\
+            [ 5.5, 13.0, 1.93, 0, 0, np.rad2deg(-0.7)]])
         
         # if len(gate_pose_group) < gate_num :
         #     raise ValueError('Invalid value of gate_num')

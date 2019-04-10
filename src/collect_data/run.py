@@ -25,9 +25,10 @@ class Run_Circle:
         self.b_one_loop_completed = False        
         self.h5_chunk_size = 32 ## 0 is excluded
         self.chunk_id = 0
-        self.count = 0
+        self.count = 1
         self.circle_num  = 1 
-        self.line_pd_dump = pd.DataFrame(np.zeros((self.h5_chunk_size,7)), columns = ["p_x","p_y","p_z","Quaternion_x","Quaternion_y","Quaternion_z","Quaternion_w"])
+       # self.line_pd_dump = pd.DataFrame(np.zeros((self.h5_chunk_size,7)), columns = ["p_x","p_y","p_z","Quaternion_x","Quaternion_y","Quaternion_z","Quaternion_w"])
+        self.line_pd_dump = pd.DataFrame(np.zeros((self.h5_chunk_size,4)), columns = ["p_x","p_y","p_z","yaw"])
         rospy.init_node("pred_pose_node")
         rate = rospy.Rate(100)
 
@@ -119,14 +120,15 @@ class Run_Circle:
 
         dict_dump = {} #  map_dict = {'p_x':0,'p_y':1,'p_z':2,'Quaternion_x':3,'Quaternion_y':4,'Quaternion_z':5,'Quaternion_w':6} 
         #same with the xyzw quaternion, needed to be tranformed to polar coodinates or Euler Angles
-        dict_dump['p_x'] = pos.pose.position.x
-        dict_dump['p_y'] = pos.pose.position.y
-        dict_dump['p_z'] = pos.pose.position.z
-        dict_dump['Quaternion_x'] = pos.pose.orientation.x
-        dict_dump['Quaternion_y'] = pos.pose.orientation.y
-        dict_dump['Quaternion_z'] = pos.pose.orientation.z
-        dict_dump['Quaternion_w'] = pos.pose.orientation.w
+        # dict_dump['p_x'] = pos.pose.position.x
+        # dict_dump['p_y'] = pos.pose.position.y
+        # dict_dump['p_z'] = pos.pose.position.z
+        # dict_dump['Quaternion_x'] = pos.pose.orientation.x
+        # dict_dump['Quaternion_y'] = pos.pose.orientation.y
+        # dict_dump['Quaternion_z'] = pos.pose.orientation.z
+        # dict_dump['Quaternion_w'] = pos.pose.orientation.w
 
+        dict_dump['p_x'], dict_dump['p_y'],  dict_dump['p_z'], dict_dump['yaw'] = self.set_pose['p_x'], self.set_pose['p_y'],self.set_pose['p_z'],self.set_pose['r_z']
         self.line_pd_dump.loc[count] =dict_dump
         print ("chunk_id:", self.chunk_id,"count:",count)
         global image_fname
@@ -191,7 +193,8 @@ class Run_Circle:
                     self.b_one_loop_completed = True
                     self.collect_data(pos,img,self.count,self.circle_num)
                     self.circle_num = self.circle_num + 1
-                    if (self.circle_num > 10):
+                    self.count = 1
+                    if (self.circle_num > 4):
                         os._exit()
                     
                 '''

@@ -12,7 +12,7 @@ from pathlib import Path
 import random
 class Parse_helper:
     
-    def __init__(self,file_froup,img_file):
+    def __init__(self,file_froup =None,img_file =None):
         pass
         self.file_group = file_froup
         self.file_path_img = img_file#['../image/2019-03-15-16-06-18','']
@@ -20,37 +20,67 @@ class Parse_helper:
         self.image = None
         self.pose = None
         
-        self.phi_max = 90
-        self.phi_min = -90
+        # self.phi_max = 90
+        # self.phi_min = -90
         
-        self.theta_max = 90
-        self.theta_min = 0
+        # self.theta_max = 90
+        # self.theta_min = 0
         
-        self.r_max = 6.5 #(horizon 6m, height 2m)
-        self.r_min = 0.2 # for the minimum offset
+        # self.r_max = 10 #(horizon 6m, height 2m)
+        # self.r_min = 0.1 # for the minimum offset
+        self.x_max = 6
+        self.x_min = -6
         
-        self.yaw_max = 90 #+-90
-        self.yaw_min = -90
-    
+        self.y_max = 6
+        self.y_min = -6
+        
+        self.z_max = 2
+        self.z_min = -2
+        
+        self.yaw_max = 360 #+-90
+        self.yaw_min = -360
+
+        self.gate_num  = 0 
+
     def get_yaw_max(self):
         return self.yaw_max
     def get_yaw_min(self):
         return self.yaw_min
     
-    def get_r_max(self):
-        return self.r_max
-    def get_r_min(self):
-        return self.r_min
+    def get_x_max(self):
+        return self.x_max
+    def get_x_min(self):
+        return self.x_min
     
-    def get_phi_max(self):
-        return self.phi_max
-    def get_phi_min(self):
-        return self.phi_min
+    def get_y_max(self):
+        return self.y_max
+    def get_y_min(self):
+        return self.y_min
     
-    def get_theta_max(self):
-        return self.theta_max
-    def get_theta_min(self):
-        return self.theta_min
+    def get_z_max(self):
+        return self.z_max
+    def get_z_min(self):
+        return self.z_min
+        
+    # def get_yaw_max(self):
+    #     return self.yaw_max
+    # def get_yaw_min(self):
+    #     return self.yaw_min
+    
+    # def get_r_max(self):
+    #     return self.r_max
+    # def get_r_min(self):
+    #     return self.r_min
+    
+    # def get_phi_max(self):
+    #     return self.phi_max
+    # def get_phi_min(self):
+    #     return self.phi_min
+    
+    # def get_theta_max(self):
+    #     return self.theta_max
+    # def get_theta_min(self):
+    #     return self.theta_min
 
     def read_image_paths(self,idx_file = 0):
         pass
@@ -64,9 +94,9 @@ class Parse_helper:
         print (img_path_tmp)
         info = re.findall(r"\d+_\d+_\d+\.?\d*_-?\d+\.*\d*",img_path_tmp)[0].split('_')
         #print('info:',info)
-        chunk_id,id_frame,height,radius = info[0],info[1],info[2],info[3]
-        
-        pose_path = Path(self.file_group+'pose/pose_'+chunk_id+'_'+str(height)+'_'+str(radius)+'.h5')
+        chunk_id,id_frame,circle_num,gate_num = info[0],info[1],info[2],info[3]
+        self.gate_num = gate_num
+        pose_path = Path(self.file_group+'pose/pose_'+chunk_id+'_'+str(circle_num)+'_'+str(circle_num)+'.h5')
         #print ('pose_path:',str(pose_path))
         pose_data = pd.read_hdf(str(pose_path), 'pose')
         self.pose = pose_data.loc[int(id_frame)]
@@ -79,7 +109,7 @@ class Parse_helper:
         #print (euler_angle)
         
         pos = np.array([self.pose['p_x'],self.pose['p_y'],self.pose['p_z']])
-        print ('chunk_id:',chunk_id,'id_frame:',id_frame,'height:',height,'radius:',radius)
+        print ('chunk_id:',chunk_id,'id_frame:',id_frame,'circle_num:',circle_num,'gate_num:',gate_num)
         return dict({'image':self.image,'pose':dict({'Roll_x':euler_angle[0],\
                                                 'Pitch_y':euler_angle[1],\
                                                 'Yaw_z':euler_angle[2],\
@@ -138,6 +168,18 @@ if __name__ == '__main__':
     Gate_Handle = Gate()
     set_pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':0,\
                 'p_x_gt':0,'p_y_gt':0,'p_z_gt':0,'r_x_gt':0,'r_y_gt':0,'r_z_gt':0}
+    gate_pose_group = np.array([\
+        [10.0, 10.0, 1.93, 0, 0, np.rad2deg(0)],\
+        [15.5, 11.0, 1.93, 0, 0, np.rad2deg(0.55)],\
+        [20.0, 14.0, 1.93, 0, 0, np.rad2deg(0.9)],\
+        [22.8, 19.0, 1.93, 0, 0, np.rad2deg(1.6)],\
+        [22.0, 25.0, 1.93, 0, 0, np.rad2deg(2.0)],\
+        [17.0, 30.0, 1.93, 0, 0, np.rad2deg(2.8)],\
+        [11.0, 29.0, 1.93, 0, 0, np.rad2deg(-2.5)],\
+        [ 7.5, 25.0, 1.93, 0, 0, np.rad2deg(-1.8)],\
+        [ 5.0, 22.3, 1.93, 0, 0, np.rad2deg(-2.3)],\
+        [ 4.0, 17.3, 1.93, 0, 0, np.rad2deg(-1.3)],\
+        [ 5.5, 13.0, 1.93, 0, 0, np.rad2deg(-0.7)]])
     try:
         #thread.start_new_thread(Gate_Handle.set_gate_pose , (set_pose,) )
         _thread.start_new_thread(Gate_Handle.start, () )
@@ -146,8 +188,8 @@ if __name__ == '__main__':
     for image_path in image_paths:
         parse = Parse_helper(test_file[0],image_path)
         pair_data = parse.read_pair()
-
-        gate_pose = np.array([10,10.5,1.93,0,0,0])
+         
+        gate_pose = gate_pose_group(parse.gate_num)
         mav_pose =  np.array([pair_data['pose']['Pos_x'],pair_data['pose']['Pos_y'],pair_data['pose']['Pos_z'],\
                                     pair_data['pose']['Roll_x'],pair_data['pose']['Pitch_y'],pair_data['pose']['Yaw_z']],np.float)
         vectors = parse.generate_train_data(gate_pose,mav_pose)

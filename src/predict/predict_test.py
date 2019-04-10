@@ -15,9 +15,9 @@ from show_gate_pose import Gate
 import cv2
 import time
 class Predcit:
-    def __init__(self,model_file):
+    def __init__(self,model_file = "../models/eleven.hdf5"):
         self.model = get_DronNet_model(3)
-        self.model = K.models.load_model(str(Path("../models/weights.032-0.146.hdf5")))
+        self.model = K.models.load_model(str(Path(model_file)))
         self.Gate_Handle = Gate()
         self.set_pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':0,\
                 'p_x_gt':0,'p_y_gt':0,'p_z_gt':0,'r_x_gt':0,'r_y_gt':0,'r_z_gt':0}
@@ -45,8 +45,8 @@ class Predcit:
 if __name__== '__main__':
     pass #
     #model = get_DronNet_model(3)
-    model = K.models.load_model(str(Path("../models/weights.001-0.255.hdf5")))
-    test_file = ["../../2019-03-21-14-05-35/"]
+    model = K.models.load_model(str(Path("../models/eleven.hdf5")))
+    test_file = ["../../2019-04-07-12-43-44/"]
     image_paths=(list(Path(test_file[0]+'image/').glob("*.bmp")))
     image_paths= sorted(image_paths)
     #print (image_paths)
