@@ -8,6 +8,7 @@ from std_msgs.msg import Int32
 from commander import Commander
 from commander import Image_Capture
 from show_gate_pose import Gate
+from parse_data import Parse_helper
 import pandas as pd
 from pathlib import Path
 import time
@@ -21,20 +22,21 @@ class Run_Circle:
         self.optimal_path =  None
         self.local_pose = None
         self.update_path =  False
-        self.local_pose = None
         self.b_one_loop_completed = False        
         self.h5_chunk_size = 32 ## 0 is excluded
         self.chunk_id = 0
         self.count = 1
         self.circle_num  = 1 
-       # self.line_pd_dump = pd.DataFrame(np.zeros((self.h5_chunk_size,7)), columns = ["p_x","p_y","p_z","Quaternion_x","Quaternion_y","Quaternion_z","Quaternion_w"])
-        self.line_pd_dump = pd.DataFrame(np.zeros((self.h5_chunk_size,4)), columns = ["p_x","p_y","p_z","yaw"])
+        self.line_pd_dump = pd.DataFrame(np.zeros((self.h5_chunk_size,7)), columns = ["p_x","p_y","p_z","Quaternion_x","Quaternion_y","Quaternion_z","Quaternion_w"])
         rospy.init_node("pred_pose_node")
         rate = rospy.Rate(100)
-
+        self.parse_data = Parse_helper()
         self.set_pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':0,\
                         'p_x_gt':0,'p_y_gt':0,'p_z_gt':0,'r_x_gt':0,'r_y_gt':0,'r_z_gt':0,'gate_num':0}
+        self.set_pub_pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':0,\
+                        'p_x_gt':0,'p_y_gt':0,'p_z_gt':0,'r_x_gt':0,'r_y_gt':0,'r_z_gt':0,'gate_num':0}
         self.pred_gate_pose_pub = rospy.Publisher('gi/gate_pose_pred/pose', PoseStamped, queue_size=10)
+        self.pred_gate_pose_show_pub = rospy.Publisher('gi/gate_pose_pred/pose_show', PoseStamped, queue_size=10)
         self.pred_gate_for_path_pub = rospy.Publisher("gi/gate_pose_pred/pose_for_path", PoseStamped, queue_size=10)
         self.gt_gate_pose_pub = rospy.Publisher('gi/gate_pose_gt/pose', PoseStamped, queue_size=10)
         self.gate_num_pub = rospy.Publisher('gi/gate/gate_num', Int32, queue_size=10)
@@ -89,7 +91,7 @@ class Run_Circle:
     def local_pose_callback(self, msg):
         self.Obtain_offboard_node(pose = msg)
 
-    def publish_gate_pose(self,gate_pose):
+    def publish_gate_pose(self,gate_pose,pose_show):
         pred_pose_helper = PoseStamped()
         pred_pose_helper.header.stamp = rospy.Time.now()
         pred_pose_helper.header.frame_id = 'pred_gate_pose'
@@ -103,15 +105,28 @@ class Run_Circle:
         self.pred_gate_pose_pub.publish(pred_pose_helper)
         self.pred_gate_for_path_pub.publish(pred_pose_helper)
         #time.sleep(0.01)
+
+        pred_pose_show_helper = PoseStamped()
+        pred_pose_show_helper.header.stamp = rospy.Time.now()
+        pred_pose_show_helper.header.frame_id = 'pred_gate_pose'
+        pred_pose_show_helper.pose.position.x = pose_show['p_x']
+        pred_pose_show_helper.pose.position.y = pose_show['p_y']
+        pred_pose_show_helper.pose.position.z = pose_show['p_z']
+        pred_pose_show_helper.pose.orientation.x = pose_show['r_x']
+        pred_pose_show_helper.pose.orientation.y = pose_show['r_y']
+        pred_pose_show_helper.pose.orientation.z = pose_show['r_z']
+        pred_pose_show_helper.pose.orientation.w = pose_show['gate_num']
+        self.pred_gate_pose_show_pub.publish(pred_pose_show_helper)
+
         gt_pose_helper = PoseStamped()
         gt_pose_helper.header.stamp = rospy.Time.now()
         gt_pose_helper.header.frame_id = 'gt_gate_pose'
-        gt_pose_helper.pose.position.x = gate_pose['p_x_gt']
-        gt_pose_helper.pose.position.y = gate_pose['p_y_gt']
-        gt_pose_helper.pose.position.z = gate_pose['p_z_gt']
-        gt_pose_helper.pose.orientation.x = gate_pose['r_x_gt']
-        gt_pose_helper.pose.orientation.y = gate_pose['r_y_gt']
-        gt_pose_helper.pose.orientation.z = gate_pose['r_z_gt']
+        gt_pose_helper.pose.position.x = pose_show['p_x_gt']
+        gt_pose_helper.pose.position.y = pose_show['p_y_gt']
+        gt_pose_helper.pose.position.z = pose_show['p_z_gt']
+        gt_pose_helper.pose.orientation.x = pose_show['r_x_gt']
+        gt_pose_helper.pose.orientation.y = pose_show['r_y_gt']
+        gt_pose_helper.pose.orientation.z = pose_show['r_z_gt']
         gt_pose_helper.pose.orientation.w = 0
         self.gt_gate_pose_pub.publish(gt_pose_helper)
         #time.sleep(0.01)
@@ -120,15 +135,14 @@ class Run_Circle:
 
         dict_dump = {} #  map_dict = {'p_x':0,'p_y':1,'p_z':2,'Quaternion_x':3,'Quaternion_y':4,'Quaternion_z':5,'Quaternion_w':6} 
         #same with the xyzw quaternion, needed to be tranformed to polar coodinates or Euler Angles
-        # dict_dump['p_x'] = pos.pose.position.x
-        # dict_dump['p_y'] = pos.pose.position.y
-        # dict_dump['p_z'] = pos.pose.position.z
-        # dict_dump['Quaternion_x'] = pos.pose.orientation.x
-        # dict_dump['Quaternion_y'] = pos.pose.orientation.y
-        # dict_dump['Quaternion_z'] = pos.pose.orientation.z
-        # dict_dump['Quaternion_w'] = pos.pose.orientation.w
+        dict_dump['p_x'] = pos.pose.position.x
+        dict_dump['p_y'] = pos.pose.position.y
+        dict_dump['p_z'] = pos.pose.position.z
+        dict_dump['Quaternion_x'] = pos.pose.orientation.x
+        dict_dump['Quaternion_y'] = pos.pose.orientation.y
+        dict_dump['Quaternion_z'] = pos.pose.orientation.z
+        dict_dump['Quaternion_w'] = pos.pose.orientation.w
 
-        dict_dump['p_x'], dict_dump['p_y'],  dict_dump['p_z'], dict_dump['yaw'] = self.set_pose['p_x'], self.set_pose['p_y'],self.set_pose['p_z'],self.set_pose['r_z']
         self.line_pd_dump.loc[count] =dict_dump
         print ("chunk_id:", self.chunk_id,"count:",count)
         global image_fname
@@ -162,17 +176,29 @@ class Run_Circle:
         mav_pose =  np.array([dict_pos['Pos_x'],dict_pos['Pos_y'],dict_pos['Pos_z'],\
                             euler_angle[0],euler_angle[1],euler_angle[2]],np.float)
 
-        p_x = gate_pose[0] - mav_pose[0] 
-        p_y = gate_pose[1] - mav_pose[1] 
-        p_z = gate_pose[2] - mav_pose[2]
+        # p_x = gate_pose[0] - mav_pose[0] 
+        # p_y = gate_pose[1] - mav_pose[1] 
+        # p_z = gate_pose[2] - mav_pose[2]
+        vec = self.parse_data.generate_train_data(gate_pose,mav_pose)
+        gt = vec[0]
+        gt_r= gt[0] #* (self.parse_data.get_r_max()-self.parse_data.get_r_min()) + self.parse_data.get_r_min()
+        gt_theta = gt[1] #* (self.parse_data.get_theta_max() - self.parse_data.get_theta_min()) + self.parse_data.get_theta_min()
+        gt_phi = gt[2] #* (self.parse_data.get_phi_max() - self.parse_data.get_phi_min()) +  self.parse_data.get_phi_min()
+        yaw = gt[3] #* (self.parse_data.get_yaw_max() -  self.parse_data.get_yaw_min()) +self.parse_data.get_yaw_min()
 
+        gt_horizen_dis =  gt_r * np.cos(np.deg2rad(gt_theta))
+        p_x_orig = gt_horizen_dis * np.cos(np.deg2rad(gt_phi)) #+ mav_pose[0]
+        p_y_orig = gt_horizen_dis * np.sin(np.deg2rad(gt_phi)) #+ mav_pose[1]
+        p_z_orig = gt_r * np.sin(np.deg2rad(gt_theta)) #+ mav_pose[2]
+        new_corr = self.parse_data.transformaiton_mav_to_world(np.array([p_x_orig,p_y_orig,p_z_orig]),mav_pose)
+        p_x,p_y,p_z = new_corr[0],new_corr[1],new_corr[2]
         ## mav_pose [5] ->  the yaw
-        '''
-        here deal with the saltation 180<-0->-180
-        '''
-        tmp1 = 180 - math.fabs(gate_pose[5])
-        tmp2 = 180 - math.fabs(mav_pose[5])
-        yaw = gate_pose[5] - mav_pose[5] if (tmp1+tmp2 )> math.fabs(gate_pose[5] - mav_pose[5]) else tmp1+tmp2
+        # '''
+        # here deal with the saltation 180<-0->-180
+        # '''
+        # tmp1 = 180 - math.fabs(gate_pose[5])
+        # tmp2 = 180 - math.fabs(mav_pose[5])
+        # yaw = gate_pose[5] - mav_pose[5] if (tmp1+tmp2 )> math.fabs(gate_pose[5] - mav_pose[5]) else tmp1+tmp2
         
 
         '''
@@ -191,10 +217,10 @@ class Run_Circle:
                 if (self.now_gate>len(self.gate_pose_group)-1):
                     self.now_gate = 0
                     self.b_one_loop_completed = True
-                    self.collect_data(pos,img,self.count,self.circle_num)
+                    #self.collect_data(pos,img,self.count,self.circle_num)
                     self.circle_num = self.circle_num + 1
                     self.count = 1
-                    if (self.circle_num > 4):
+                    if (self.circle_num > 10):
                         os._exit()
                     
                 '''
@@ -215,19 +241,47 @@ class Run_Circle:
                 gate_pose = self.gate_pose_group[self.now_gate]
                 mav_pose =  np.array([dict_pos['Pos_x'],dict_pos['Pos_y'],dict_pos['Pos_z'],\
                                     euler_angle[0],euler_angle[1],euler_angle[2]],np.float)
-                p_x = gate_pose[0] - mav_pose[0]
-                p_y = gate_pose[1] - mav_pose[1]
-                p_z = gate_pose[2] - mav_pose[2]
-                yaw = gate_pose[5] - mav_pose[5]
+                # p_x = gate_pose[0] - mav_pose[0]
+                # p_y = gate_pose[1] - mav_pose[1]
+                # p_z = gate_pose[2] - mav_pose[2]
+                # yaw = gate_pose[5] - mav_pose[5]
+                vec = self.parse_data.generate_train_data(gate_pose,mav_pose)
+                gt = vec[0]
+                gt_r= gt[0] #* (self.parse_data.get_r_max()-self.parse_data.get_r_min()) + self.parse_data.get_r_min()
+                gt_theta = gt[1] #* (self.parse_data.get_theta_max() - self.parse_data.get_theta_min()) + self.parse_data.get_theta_min()
+                gt_phi = gt[2] #* (self.parse_data.get_phi_max() - self.parse_data.get_phi_min()) +  self.parse_data.get_phi_min()
+                yaw = gt[3] #* (self.parse_data.get_yaw_max() -  self.parse_data.get_yaw_min()) +self.parse_data.get_yaw_min()
 
+                gt_horizen_dis =  gt_r * np.sin(np.deg2rad(gt_theta))
+                p_x_orig = gt_horizen_dis * np.cos(np.deg2rad(gt_phi)) #+ mav_pose[0]
+                p_y_orig = gt_horizen_dis * np.sin(np.deg2rad(gt_phi)) #+ mav_pose[1]
+                p_z_orig = gt_r * np.cos(np.deg2rad(gt_theta)) #+ mav_pose[2]
+                new_corr = self.parse_data.transformaiton_mav_to_world(np.array([p_x_orig,p_y_orig,p_z_orig]),mav_pose)
+                p_x,p_y,p_z = new_corr[0],new_corr[1],new_corr[2]
+
+       
+        pred_gate_pose_x = p_x + mav_pose[0]
+        pred_gate_pose_y = p_y + mav_pose[1]
+        pred_gate_pose_z = p_z + mav_pose[2]
+        pred_gate_pose_yaw =  yaw + mav_pose[5]
+        pred_gate_pose_yaw = -360 + pred_gate_pose_yaw if pred_gate_pose_yaw > 180 else pred_gate_pose_yaw
+        pred_gate_pose_yaw =  360 + pred_gate_pose_yaw if pred_gate_pose_yaw <-180 else pred_gate_pose_yaw
         print ('~~~~~~~~~~~~~*************~~~~~~~~~~~~~~')
         print ('dis',dis)
         print ('pred',p_x, p_y, p_z, yaw)
+        print ('pred_orig',p_x_orig, p_y_orig, p_z_orig, yaw)
+        print ('raw_data',gt_r, gt_theta, gt_phi, yaw)
+        print ('mav_pose',mav_pose)
+        print ('pred_pose',pred_gate_pose_x, pred_gate_pose_y, pred_gate_pose_z)
         print ("gt_pose:",gate_pose[0],gate_pose[1],gate_pose[2],gate_pose[5])
         print ('self.b_switch_gate:',self.b_switch_gate)
+
         self.set_pose['p_x'], self.set_pose['p_y'],self.set_pose['p_z'],self.set_pose['r_z']  = p_x, p_y, p_z, yaw
+        self.set_pub_pose['p_x'], self.set_pub_pose['p_y'],self.set_pub_pose['p_z'],self.set_pub_pose['r_z']  = p_x_orig, p_y_orig, p_z_orig, yaw
+
         self.set_pose['p_x_gt'],self.set_pose['p_y_gt'],self.set_pose['p_z_gt'],self.set_pose['r_z_gt']  = gate_pose[0],gate_pose[1],gate_pose[2],gate_pose[5]
-        self.collect_data(pos,img,self.count,self.circle_num)
+        self.set_pub_pose['p_x_gt'],self.set_pub_pose['p_y_gt'],self.set_pub_pose['p_z_gt'],self.set_pub_pose['r_z_gt']  = gate_pose[0]/10,gate_pose[1]/10,gate_pose[2]/10,gate_pose[5]
+        #self.collect_data(pos,img,self.count,self.circle_num)
         self.count = self.count + 1
         return np.array([p_x,p_y,p_z,yaw])
         
@@ -254,7 +308,7 @@ class Run_Circle:
         if image is not None:
             rev_pos = self.get_relavtive_pos(img)
             print ("rev_pos:",rev_pos)
-            self.publish_gate_pose(self.set_pose) ##  time.sleep 0.01 delay 0.01s
+            self.publish_gate_pose(self.set_pose,self.set_pub_pose) ##  time.sleep 0.01 delay 0.01s
             print ('~~~~~~~~~~~~~*************~~~~~~~~~~~~~~')
 
            

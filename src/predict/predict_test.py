@@ -46,7 +46,7 @@ if __name__== '__main__':
     pass #
     #model = get_DronNet_model(3)
     model = K.models.load_model(str(Path("../models/eleven.hdf5")))
-    test_file = ["../../2019-04-07-12-43-44/"]
+    test_file = ["../../2019-04-04-14-19-16/"]
     image_paths=(list(Path(test_file[0]+'image/').glob("*.bmp")))
     image_paths= sorted(image_paths)
     #print (image_paths)
@@ -65,6 +65,7 @@ if __name__== '__main__':
     for image_path in image_paths:
         parse = Parse_helper(test_file[0],image_path)
         pair_data = parse.read_pair()
+        gate_num = parse.get_gate_num()
         image = pair_data['image']
 
         start = time.clock()
@@ -85,17 +86,30 @@ if __name__== '__main__':
 
         gt =  np.array([pair_data['pose']['Pos_x'],pair_data['pose']['Pos_y'],pair_data['pose']['Pos_z'],\
                         pair_data['pose']['Roll_x'],pair_data['pose']['Pitch_y'],pair_data['pose']['Yaw_z']],np.float)
-        gate_pose = np.array([10,10.5,1.93,0,0,0])
+        gate_pose_group = np.array([\
+                        [10.0, 10.0, 1.93, 0, 0, np.rad2deg(0)],\
+                        [15.5, 11.0, 1.93, 0, 0, np.rad2deg(0.55)],\
+                        [20.0, 14.0, 1.93, 0, 0, np.rad2deg(0.9)],\
+                        [22.8, 19.0, 1.93, 0, 0, np.rad2deg(1.6)],\
+                        [22.0, 25.0, 1.93, 0, 0, np.rad2deg(2.0)],\
+                        [17.0, 30.0, 1.93, 0, 0, np.rad2deg(2.8)],\
+                        [11.0, 29.0, 1.93, 0, 0, np.rad2deg(-2.5)],\
+                        [ 7.5, 25.0, 1.93, 0, 0, np.rad2deg(-1.8)],\
+                        [ 5.0, 22.3, 1.93, 0, 0, np.rad2deg(-2.3)],\
+                        [ 4.0, 17.3, 1.93, 0, 0, np.rad2deg(-1.3)],\
+                        [ 5.5, 13.0, 1.93, 0, 0, np.rad2deg(-0.7)]])
+        gate_pose = gate_pose_group[gate_num]
         vectors = parse.generate_train_data(gate_pose,gt)
-        gt = vectors[0]
-        gt_r = gt[0]
-        gt_theta = gt[1] 
-        gt_phi = gt[2] 
-        gt_yaw = gt[3] 
+        gt = vectors[1]
+        gt_r= gt[0] * (parse.get_r_max()-parse.get_r_min()) + parse.get_r_min()
+        gt_theta = gt[1] * (parse.get_theta_max() - parse.get_theta_min()) + parse.get_theta_min()
+        gt_phi = gt[2] * (parse.get_phi_max() - parse.get_phi_min()) +  parse.get_phi_min()
+        gt_yaw = gt[3] * (parse.get_yaw_max() -  parse.get_yaw_min()) +parse.get_yaw_min()
+
         gt_horizen_dis =  gt_r * np.sin(np.deg2rad(gt_theta))
         gt_p_x = gt_horizen_dis * np.cos(np.deg2rad(gt_phi))
         gt_p_y = gt_horizen_dis * np.sin(np.deg2rad(gt_phi)) # phi
-        set_pose['p_x_gt'],set_pose['p_y_gt'],set_pose['r_z_gt']  = (gt_p_y), (-gt_p_x),gt_yaw
+        set_pose['p_x_gt'],set_pose['p_y_gt'],set_pose['r_z_gt']  = (gt_p_y)/2, (-gt_p_x)/2,gt_yaw
        
 
         print ("gt_pose:",gt)

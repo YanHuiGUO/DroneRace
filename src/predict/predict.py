@@ -43,7 +43,7 @@ class MAV_Pred:
         self.local_pose_sub = rospy.Subscriber("/gi/local_position/pose", PoseStamped, self.local_pose_callback)
        
         #self.model = get_DronNet_model(3)
-        self.model = K.models.load_model(str(Path("../models/weights.002-0.215.hdf5")))
+        self.model = K.models.load_model(str(Path("../models/eleven.hdf5")))
 
         self.b_switch_gate = False
         self.start = 0

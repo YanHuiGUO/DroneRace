@@ -52,9 +52,9 @@ class Gate:
         #GLUT.glutMainLoop()   
         rospy.init_node("show_pose_node")
         rate = rospy.Rate(100)
-        self.pred_pose_sub = rospy.Subscriber("gi/gate_pose_pred/pose", PoseStamped, self.pred_pose_callback)
+        self.pred_pose_show_sub = rospy.Subscriber("gi/gate_pose_pred/pose_show", PoseStamped, self.pred_pose_callback)
         self.gt_pose_sub = rospy.Subscriber("gi/gate_pose_gt/pose", PoseStamped, self.gt_pose_callback)
-
+    
 
     def draw(self):
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
@@ -249,12 +249,12 @@ class Gate:
     def gt_pose_callback(self,msg):
        
         
-        self.pose ['p_x_gt'] = 0#msg.pose.position.y
-        self.pose ['p_y_gt'] = 0#-msg.pose.position.x
+        self.pose ['p_x_gt'] = msg.pose.position.y
+        self.pose ['p_y_gt'] = -msg.pose.position.x
         self.pose ['p_z_gt'] = msg.pose.position.z
         self.pose ['r_x_gt'] = msg.pose.orientation.x
         self.pose ['r_y_gt'] = msg.pose.orientation.y
-        self.pose ['r_z_gt'] = 0#msg.pose.orientation.z
+        self.pose ['r_z_gt'] = msg.pose.orientation.z
         #print ('gt_pose_callback')
 
 def test_pose_change(Handle):
