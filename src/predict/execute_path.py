@@ -14,7 +14,6 @@ import threading
 import tty
 import os
 import termios
-
 class Execute_Class:
     def __init__(self):
         self.pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':0}
