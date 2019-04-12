@@ -27,7 +27,7 @@ class Run_Circle:
         self.chunk_id = 0
         self.count = 1
         self.circle_num  = 1 
-        self.line_pd_dump = pd.DataFrame(np.zeros((self.h5_chunk_size,7)), columns = ["p_x","p_y","p_z","Quaternion_x","Quaternion_y","Quaternion_z","Quaternion_w"])
+        self.line_pd_dump = pd.DataFrame(np.zeros((self.h5_chunk_size,4)), columns = ["r","theta","phi","yaw"])
         rospy.init_node("pred_pose_node")
         rate = rospy.Rate(100)
         self.parse_data = Parse_helper()
@@ -41,7 +41,7 @@ class Run_Circle:
         self.gt_gate_pose_pub = rospy.Publisher('gi/gate_pose_gt/pose', PoseStamped, queue_size=10)
         self.gate_num_pub = rospy.Publisher('gi/gate/gate_num', Int32, queue_size=10)
         self.local_pose_sub = rospy.Subscriber("/gi/local_position/pose", PoseStamped, self.local_pose_callback)
-
+        self.save_data_label = None
         self.b_switch_gate = False
         self.start = 0
         self.now_gate = 0
@@ -131,17 +131,15 @@ class Run_Circle:
         self.gt_gate_pose_pub.publish(gt_pose_helper)
         #time.sleep(0.01)
 
-    def collect_data(self,pos,img,count,circle_num):
+    def collect_data(self,pose,img,count,circle_num):
 
         dict_dump = {} #  map_dict = {'p_x':0,'p_y':1,'p_z':2,'Quaternion_x':3,'Quaternion_y':4,'Quaternion_z':5,'Quaternion_w':6} 
         #same with the xyzw quaternion, needed to be tranformed to polar coodinates or Euler Angles
-        dict_dump['p_x'] = pos.pose.position.x
-        dict_dump['p_y'] = pos.pose.position.y
-        dict_dump['p_z'] = pos.pose.position.z
-        dict_dump['Quaternion_x'] = pos.pose.orientation.x
-        dict_dump['Quaternion_y'] = pos.pose.orientation.y
-        dict_dump['Quaternion_z'] = pos.pose.orientation.z
-        dict_dump['Quaternion_w'] = pos.pose.orientation.w
+        dict_dump['r'] = pose[0]
+        dict_dump['theta'] = pose[1]
+        dict_dump['phi'] =pose[2]
+        dict_dump['yaw'] = pose[3]
+
 
         self.line_pd_dump.loc[count] =dict_dump
         print ("chunk_id:", self.chunk_id,"count:",count)
@@ -180,11 +178,11 @@ class Run_Circle:
         # p_y = gate_pose[1] - mav_pose[1] 
         # p_z = gate_pose[2] - mav_pose[2]
         vec = self.parse_data.generate_train_data(gate_pose,mav_pose)
-        gt = vec[0]
-        gt_r= gt[0] #* (self.parse_data.get_r_max()-self.parse_data.get_r_min()) + self.parse_data.get_r_min()
-        gt_theta = gt[1] #* (self.parse_data.get_theta_max() - self.parse_data.get_theta_min()) + self.parse_data.get_theta_min()
-        gt_phi = gt[2] #* (self.parse_data.get_phi_max() - self.parse_data.get_phi_min()) +  self.parse_data.get_phi_min()
-        yaw = gt[3] #* (self.parse_data.get_yaw_max() -  self.parse_data.get_yaw_min()) +self.parse_data.get_yaw_min()
+        gt = vec[1]
+        gt_r= gt[0] * (self.parse_data.get_r_max()-self.parse_data.get_r_min()) + self.parse_data.get_r_min()
+        gt_theta = gt[1] * (self.parse_data.get_theta_max() - self.parse_data.get_theta_min()) + self.parse_data.get_theta_min()
+        gt_phi = gt[2] * (self.parse_data.get_phi_max() - self.parse_data.get_phi_min()) +  self.parse_data.get_phi_min()
+        yaw = gt[3] * (self.parse_data.get_yaw_max() -  self.parse_data.get_yaw_min()) +self.parse_data.get_yaw_min()
 
         gt_horizen_dis =  gt_r * np.cos(np.deg2rad(gt_theta))
         p_x_orig = gt_horizen_dis * np.cos(np.deg2rad(gt_phi)) #+ mav_pose[0]
@@ -217,7 +215,7 @@ class Run_Circle:
                 if (self.now_gate>len(self.gate_pose_group)-1):
                     self.now_gate = 0
                     self.b_one_loop_completed = True
-                    #self.collect_data(pos,img,self.count,self.circle_num)
+                    #self.collect_data(gt,img,self.count,self.circle_num)
                     self.circle_num = self.circle_num + 1
                     self.count = 1
                     if (self.circle_num > 10):
@@ -246,11 +244,11 @@ class Run_Circle:
                 # p_z = gate_pose[2] - mav_pose[2]
                 # yaw = gate_pose[5] - mav_pose[5]
                 vec = self.parse_data.generate_train_data(gate_pose,mav_pose)
-                gt = vec[0]
-                gt_r= gt[0] #* (self.parse_data.get_r_max()-self.parse_data.get_r_min()) + self.parse_data.get_r_min()
-                gt_theta = gt[1] #* (self.parse_data.get_theta_max() - self.parse_data.get_theta_min()) + self.parse_data.get_theta_min()
-                gt_phi = gt[2] #* (self.parse_data.get_phi_max() - self.parse_data.get_phi_min()) +  self.parse_data.get_phi_min()
-                yaw = gt[3] #* (self.parse_data.get_yaw_max() -  self.parse_data.get_yaw_min()) +self.parse_data.get_yaw_min()
+                gt = vec[1]
+                gt_r= gt[0] * (self.parse_data.get_r_max()-self.parse_data.get_r_min()) + self.parse_data.get_r_min()
+                gt_theta = gt[1] * (self.parse_data.get_theta_max() - self.parse_data.get_theta_min()) + self.parse_data.get_theta_min()
+                gt_phi = gt[2] * (self.parse_data.get_phi_max() - self.parse_data.get_phi_min()) +  self.parse_data.get_phi_min()
+                yaw = gt[3] * (self.parse_data.get_yaw_max() -  self.parse_data.get_yaw_min()) +self.parse_data.get_yaw_min()
 
                 gt_horizen_dis =  gt_r * np.sin(np.deg2rad(gt_theta))
                 p_x_orig = gt_horizen_dis * np.cos(np.deg2rad(gt_phi)) #+ mav_pose[0]
@@ -259,7 +257,6 @@ class Run_Circle:
                 new_corr = self.parse_data.transformaiton_mav_to_world(np.array([p_x_orig,p_y_orig,p_z_orig]),mav_pose)
                 p_x,p_y,p_z = new_corr[0],new_corr[1],new_corr[2]
 
-       
         pred_gate_pose_x = p_x + mav_pose[0]
         pred_gate_pose_y = p_y + mav_pose[1]
         pred_gate_pose_z = p_z + mav_pose[2]
@@ -281,7 +278,7 @@ class Run_Circle:
 
         self.set_pose['p_x_gt'],self.set_pose['p_y_gt'],self.set_pose['p_z_gt'],self.set_pose['r_z_gt']  = gate_pose[0],gate_pose[1],gate_pose[2],gate_pose[5]
         self.set_pub_pose['p_x_gt'],self.set_pub_pose['p_y_gt'],self.set_pub_pose['p_z_gt'],self.set_pub_pose['r_z_gt']  = gate_pose[0]/10,gate_pose[1]/10,gate_pose[2]/10,gate_pose[5]
-        #self.collect_data(pos,img,self.count,self.circle_num)
+        #self.collect_data(gt,img,self.count,self.circle_num)
         self.count = self.count + 1
         return np.array([p_x,p_y,p_z,yaw])
         
@@ -318,8 +315,8 @@ if __name__== '__main__':
     img = Image_Capture()
     pose_fname = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()) 
     image_fname = pose_fname
-    os.makedirs ('../../'+pose_fname +'/pose/')
-    os.makedirs ('../../'+image_fname + '/image/')
+    # os.makedirs ('../../'+pose_fname +'/pose/')
+    # os.makedirs ('../../'+image_fname + '/image/')
 
     while 1:
         
