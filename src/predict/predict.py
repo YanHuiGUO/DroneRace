@@ -42,7 +42,7 @@ class Run_Circle:
         self.gt_gate_pose_pub = rospy.Publisher('gi/gate_pose_gt/pose', PoseStamped, queue_size=10)
         self.gate_num_pub = rospy.Publisher('gi/gate/gate_num', Int32, queue_size=10)
         self.local_pose_sub = rospy.Subscriber("/gi/local_position/pose", PoseStamped, self.local_pose_callback)
-        self.model = K.models.load_model(str(Path("../models/weights.016-0.099.hdf5")))
+        self.model = K.models.load_model(str(Path("../models/weights.018-0.125.hdf5")))
         self.save_data_label = None
         self.b_switch_gate = False
         self.start = 0
@@ -55,11 +55,11 @@ class Run_Circle:
             [15.5, 11.0, 1.93, 0, 0, np.rad2deg(0.55)],\
             [20.0, 14.0, 1.93, 0, 0, np.rad2deg(0.9)],\
             [22.8, 19.0, 1.93, 0, 0, np.rad2deg(1.6)],\
-            [22.0, 25.0, 1.93, 0, 0, np.rad2deg(2.0)],\
-            [17.0, 30.0, 1.93, 0, 0, np.rad2deg(2.8)],\
-            [11.0, 29.0, 1.93, 0, 0, np.rad2deg(-2.5)],\
-            [ 7.5, 25.0, 1.93, 0, 0, np.rad2deg(-1.8)],\
-            [ 5.0, 22.3, 1.93, 0, 0, np.rad2deg(-2.3)],\
+            [22.6, 25.2, 1.93, 0, 0, np.rad2deg(2.0)],\
+            [18.0, 30.5, 1.93, 0, 0, np.rad2deg(2.7)],\
+            [10.2, 31.1, 1.93, 0, 0, np.rad2deg(-2.6)],\
+            [ 6.4, 27.0, 1.93, 0, 0, np.rad2deg(-2.1)],\
+            [ 4.0, 22.6, 1.93, 0, 0, np.rad2deg(-1.94)],\
             [ 4.0, 17.3, 1.93, 0, 0, np.rad2deg(-1.3)],\
             [ 5.5, 13.0, 1.93, 0, 0, np.rad2deg(-0.7)]])
     

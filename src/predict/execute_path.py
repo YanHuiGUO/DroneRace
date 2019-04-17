@@ -19,7 +19,7 @@ class Execute_Class:
         self.pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':0}
         self.pred_r =0 # r parameter
         self.optimal_path = None
-        self.Duration = 3
+        self.Duration = 1.6
         self.update_path = False
         self.con  = Commander()
         self.path_queue_size = 100
@@ -122,7 +122,7 @@ class Execute_Class:
        
         if self.optimal_path is not None:   
             
-            time_interval = 0.02
+            time_interval = 0.01
             next_x = 0
             next_y = 0
             next_z = 0
@@ -136,15 +136,16 @@ class Execute_Class:
                 print ('next_piont:',path_tmp)
                 print ('~~~~~~~~~~~~~*************~~~~~~~~~~~~~~')
                 self.con.move(path_tmp[0],path_tmp[1],path_tmp[2],path_tmp[3],False)
-                time.sleep(0.05)
+                time.sleep(0.03)
 
             if(self.path_queue.empty()== True):
                 self.generate_path() 
             start_t = self.Duration - self.path_queue_size*time_interval
             stop_t  = self.Duration
             #yaw_delta = self.pose['r_z']/self.path_queue_size
-            yaw_a = self.pose['r_z']/(np.exp(stop_t - time_interval)-np.exp(start_t)) #[),so stop_t - time_interval
-            yaw_b = self.mav_pose[5] - yaw_a * np.exp(start_t)
+            eps = 10e-5
+            yaw_a = self.pose['r_z']/(np.log(stop_t - time_interval + eps)-np.log(start_t + eps)) #[),so stop_t - time_interval
+            yaw_b = self.mav_pose[5] - yaw_a * np.log(start_t + eps)
 
 
             theta = self.mav_pose[5]
@@ -164,7 +165,7 @@ class Execute_Class:
                 #print ('get_normal_vector(t):',self.optimal_path.get_normal_vector(t),self.path_handle.generate_yaw_from_vel(self.optimal_path.get_normal_vector(t)))
                 #print ('get_velocity(t):',self.optimal_path.get_velocity(t),self.path_handle.generate_yaw_from_vel(self.optimal_path.get_velocity(t)))
                 #theta =  self.path_handle.generate_yaw_from_vel(self.optimal_path.get_normal_vector(t),self.mav_pose[5])
-                theta = yaw_a * np.exp(t) + yaw_b#theta + yaw_delta
+                theta = yaw_a * np.log(t) + yaw_b#theta + yaw_delta
 
                 '''
                 deal with the point of -180->180
@@ -193,7 +194,7 @@ if __name__== '__main__':
     
     jump_once = 1
     theta = 0
-    r = 3
+    r = 1.5
     
     c_x,c_y = 10,10
     bias_x,bias_y = -0.1,0.5

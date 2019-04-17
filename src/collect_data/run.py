@@ -48,18 +48,20 @@ class Run_Circle:
         
         self.center_offset = 0.5 #the offset between the center of gate and the gate coordinate
         #the postion of all gates
+        
         self.gate_pose_group = np.array([\
             [10.0, 10.0, 1.93, 0, 0, np.rad2deg(0)],\
             [15.5, 11.0, 1.93, 0, 0, np.rad2deg(0.55)],\
             [20.0, 14.0, 1.93, 0, 0, np.rad2deg(0.9)],\
             [22.8, 19.0, 1.93, 0, 0, np.rad2deg(1.6)],\
-            [22.0, 25.0, 1.93, 0, 0, np.rad2deg(2.0)],\
-            [17.0, 30.0, 1.93, 0, 0, np.rad2deg(2.8)],\
-            [11.0, 29.0, 1.93, 0, 0, np.rad2deg(-2.5)],\
-            [ 7.5, 25.0, 1.93, 0, 0, np.rad2deg(-1.8)],\
-            [ 5.0, 22.3, 1.93, 0, 0, np.rad2deg(-2.3)],\
+            [22.6, 25.2, 1.93, 0, 0, np.rad2deg(2.0)],\
+            [18.0, 30.5, 1.93, 0, 0, np.rad2deg(2.7)],\
+            [10.2, 31.1, 1.93, 0, 0, np.rad2deg(-2.6)],\
+            [ 6.4, 27.0, 1.93, 0, 0, np.rad2deg(-2.1)],\
+            [ 4.0, 22.6, 1.93, 0, 0, np.rad2deg(-1.94)],\
             [ 4.0, 17.3, 1.93, 0, 0, np.rad2deg(-1.3)],\
             [ 5.5, 13.0, 1.93, 0, 0, np.rad2deg(-0.7)]])
+        
     
     '''
     deal the center offet of gate
@@ -203,22 +205,22 @@ class Run_Circle:
         check the mav whether fly though a gate and switch its goal to next one
         '''
         dis = math.sqrt(pow(p_x,2)+pow(p_y,2))
-        if(dis <= 0.8 and self.b_switch_gate == False):
+        if(dis <= 1 and self.b_switch_gate == False):
             self.b_switch_gate = True
             self.start = time.time()
         
         if(self.b_switch_gate ==  True):
             delta_time = time.time() - self.start  
-            if(delta_time > 0.1):
+            if(delta_time > 0.05):
                 self.b_switch_gate = False
                 self.now_gate = self.now_gate + 1
                 if (self.now_gate>len(self.gate_pose_group)-1):
                     self.now_gate = 0
                     self.b_one_loop_completed = True
-                    #self.collect_data(gt,img,self.count,self.circle_num)
+                    self.collect_data(gt,img,self.count,self.circle_num)
                     self.circle_num = self.circle_num + 1
                     self.count = 1
-                    if (self.circle_num > 10):
+                    if (self.circle_num > 7):
                         os._exit()
                     
                 '''
@@ -278,7 +280,7 @@ class Run_Circle:
 
         self.set_pose['p_x_gt'],self.set_pose['p_y_gt'],self.set_pose['p_z_gt'],self.set_pose['r_z_gt']  = gate_pose[0],gate_pose[1],gate_pose[2],gate_pose[5]
         self.set_pub_pose['p_x_gt'],self.set_pub_pose['p_y_gt'],self.set_pub_pose['p_z_gt'],self.set_pub_pose['r_z_gt']  = gate_pose[0]/10,gate_pose[1]/10,gate_pose[2]/10,gate_pose[5]
-        #self.collect_data(gt,img,self.count,self.circle_num)
+        self.collect_data(gt,img,self.count,self.circle_num)
         self.count = self.count + 1
         return np.array([p_x,p_y,p_z,yaw])
         
@@ -315,8 +317,8 @@ if __name__== '__main__':
     img = Image_Capture()
     pose_fname = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()) 
     image_fname = pose_fname
-    # os.makedirs ('../../'+pose_fname +'/pose/')
-    # os.makedirs ('../../'+image_fname + '/image/')
+    os.makedirs ('../../'+pose_fname +'/pose/')
+    os.makedirs ('../../'+image_fname + '/image/')
 
     while 1:
         
