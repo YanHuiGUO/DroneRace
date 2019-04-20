@@ -19,7 +19,7 @@ class Execute_Class:
         self.pose = {'p_x':0,'p_y':0,'p_z':0,'r_x':0,'r_y':0,'r_z':0}
         self.pred_r =0 # r parameter
         self.optimal_path = None
-        self.Duration = 1.6
+        self.Duration = 3
         self.update_path = False
         self.con  = Commander()
         self.path_queue_size = 100
@@ -122,7 +122,7 @@ class Execute_Class:
        
         if self.optimal_path is not None:   
             
-            time_interval = 0.01
+            time_interval = 0.02
             next_x = 0
             next_y = 0
             next_z = 0
@@ -136,7 +136,7 @@ class Execute_Class:
                 print ('next_piont:',path_tmp)
                 print ('~~~~~~~~~~~~~*************~~~~~~~~~~~~~~')
                 self.con.move(path_tmp[0],path_tmp[1],path_tmp[2],path_tmp[3],False)
-                time.sleep(0.03)
+                time.sleep(0.05)
 
             if(self.path_queue.empty()== True):
                 self.generate_path() 

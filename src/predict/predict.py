@@ -42,7 +42,7 @@ class Run_Circle:
         self.gt_gate_pose_pub = rospy.Publisher('gi/gate_pose_gt/pose', PoseStamped, queue_size=10)
         self.gate_num_pub = rospy.Publisher('gi/gate/gate_num', Int32, queue_size=10)
         self.local_pose_sub = rospy.Subscriber("/gi/local_position/pose", PoseStamped, self.local_pose_callback)
-        self.model = K.models.load_model(str(Path("../models/weights.018-0.125.hdf5")))
+        self.model = K.models.load_model(str(Path("../models/weights.022-0.164.hdf5")))
         self.save_data_label = None
         self.b_switch_gate = False
         self.start = 0
