@@ -64,6 +64,17 @@ class Parse_helper:
         img_paths = glob.glob(self.file_path_img[idx_file]+'/*.bmp')
         #print (img_paths)
         return img_paths
+    def img_maksed(self,image):
+        img_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        low_red1 = (0, 43, 43)
+        high_red1 = (18, 255, 255)
+        
+        low_red2 = (150, 43, 43)
+        high_red2 = (180, 255, 255)
+        mask1 = cv2.inRange(img_hsv, low_red1, high_red1)
+        mask2 = cv2.inRange(img_hsv, low_red2, high_red2)
+        mask = mask1+mask2
+        return cv2.bitwise_and(image,image,mask)
     def read_pair(self):   
         img_path = str(self.file_path_img)
         img_path_tmp = img_path.rstrip('.bmp')
@@ -78,8 +89,9 @@ class Parse_helper:
         pose_data = pd.read_hdf(str(pose_path), 'pose')
         self.pose = pose_data.loc[int(id_frame)]
         self.image = cv2.imread(img_path)
+        #self.image = self.img_maksed(self.image)
         
-        #self.image = cv2.resize(self.image,(64, 64), interpolation=cv2.INTER_CUBIC)
+        self.image = cv2.resize(self.image,(200, 200), interpolation=cv2.INTER_CUBIC)
         
         #q = np.array([self.pose['Quaternion_w'],self.pose['Quaternion_x'],self.pose['Quaternion_y'],self.pose['Quaternion_z']])
         #print (q)

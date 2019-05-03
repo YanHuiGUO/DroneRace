@@ -23,7 +23,7 @@ class TrainImageGenerator(Sequence):
     def __getitem__(self,idx):
         batch_size = self.batch_size
         label_size = self.label_size
-        x = np.zeros((batch_size, 240, 320, 3), dtype=np.uint8)
+        x = np.zeros((batch_size, 200, 200, 3), dtype=np.uint8)
         y1 = np.zeros((batch_size,1), dtype=np.float64)
         y2 = np.zeros((batch_size,1), dtype=np.float64)
         y3 = np.zeros((batch_size,1), dtype=np.float64)
@@ -99,7 +99,7 @@ class ValGenerator(Sequence):
     def __getitem__(self, idx):
        # print (self.data[idx])
         batch_size = self.__len__()
-        x = np.zeros((batch_size, 240, 320, 3), dtype=np.uint8)
+        x = np.zeros((batch_size, 200, 200, 3), dtype=np.uint8)
         y1 = np.zeros((batch_size,1), dtype=np.float64)
         y2 = np.zeros((batch_size,1), dtype=np.float64)
         y3 = np.zeros((batch_size,1), dtype=np.float64)

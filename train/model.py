@@ -1,5 +1,5 @@
 from keras.models import Model
-from keras.layers import Input, Add, Conv2DTranspose, Concatenate, MaxPooling2D, UpSampling2D, Dropout,LeakyReLU
+from keras.layers import Input, Add, Conv2DTranspose, Concatenate, MaxPooling2D, UpSampling2D, Dropout,LeakyReLU,GlobalAveragePooling2D
 from keras.layers.convolutional import Conv2D
 from keras.layers.normalization import BatchNormalization
 from keras.layers.core import Dense, Activation,Flatten
@@ -22,7 +22,7 @@ def get_DronNet_model(input_channel_num = 3, lr = 0.001):
 
         return m
 
-    inputs = Input(shape=(240, 320, input_channel_num))
+    inputs = Input(shape=(200, 200, input_channel_num))
     x = Conv2D(32, (5, 5),strides = 2, padding="same", kernel_initializer="he_normal")(inputs)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
@@ -35,9 +35,6 @@ def get_DronNet_model(input_channel_num = 3, lr = 0.001):
     x = _residual_block(x,128)
 	
     x = Dropout(0.5)(x)
-    #x1 = Dense(1, activation='relu',input_dim = 128)(x)
-    #x2 = Dense(4, activation='relu',input_dim = 128)(x)
-    #x = LeakyReLU(alpha=0.5)(x)
     
     features = Flatten()(x)
     

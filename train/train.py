@@ -67,7 +67,7 @@ class LossHistory(K.callbacks.Callback):
 
 if __name__== '__main__':
     pass
-    # generator = TrainImageGenerator(["..\\data\\2019-04-07-12-43-44\\"], batch_size=8,label_size=6)
+    # generator = TrainImageGenerator(["..\\data\\2019-04-27-17-03-55\\"], batch_size=8,label_size=6)
     # val_generator = ValGenerator("..\\data\\val\\")
         #print (generator.__getitem__())
     # print (val_generator.__getitem__(1))
@@ -84,7 +84,7 @@ if __name__== '__main__':
         model = K.models.load_model(pre_train_model)
    
     
-    generator = TrainImageGenerator(["..\\data\\2019-04-26-19-28-24\\"], batch_size=1,label_size=4)
+    generator = TrainImageGenerator(["..\\data\\2019-04-27-17-03-55\\"], batch_size=1,label_size=4)
     val_generator = ValGenerator("..\\data\\eleve_gates_test\\")
     output_path.mkdir(parents=True, exist_ok=True)
 
